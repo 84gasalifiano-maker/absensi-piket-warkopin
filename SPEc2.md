@@ -48,6 +48,9 @@ Aturan:
 - Reset password dilakukan admin. Saat login pertama, user wajib ganti password.
   - Selama wajib ganti password, semua halaman dialihkan ke `/ganti-password` (kecuali logout).
   - Password baru: minimal 8 karakter, harus berbeda dari password lama, dan diketik dua kali (konfirmasi).
+  - Batasi percobaan ganti password (maks 5 kali per menit per user).
+- Setiap kali password berubah (diganti user sendiri atau direset admin), semua sesi dan cookie "Ingat saya" user itu di perangkat lain ikut keluar. Kalau user mengganti sendiri, perangkat yang sedang dipakai tetap login.
+- Setiap kolom password (login; ganti password: lama, baru, konfirmasi) punya tombol sendiri untuk menampilkan/menyembunyikan isinya. Default tersembunyi. Label untuk pembaca layar berubah sesuai kondisi: "Tampilkan password" / "Sembunyikan password".
 - Batasi percobaan login gagal (maks 5 kali per menit per NIS/email + IP).
 
 ### F2. Jadwal Piket

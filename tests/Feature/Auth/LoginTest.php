@@ -3,7 +3,6 @@
 namespace Tests\Feature\Auth;
 
 use App\Enums\Role;
-use Illuminate\Auth\SessionGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -13,14 +12,6 @@ use Tests\TestCase;
 class LoginTest extends TestCase
 {
     use RefreshDatabase;
-
-    private function namaCookieIngatSaya(): string
-    {
-        /** @var SessionGuard $guard */
-        $guard = Auth::guard('web');
-
-        return $guard->getRecallerName();
-    }
 
     public function test_halaman_login_tampil_dengan_ingat_saya_tidak_dicentang(): void
     {

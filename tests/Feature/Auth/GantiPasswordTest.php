@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -40,6 +41,21 @@ class GantiPasswordTest extends TestCase
         $this->get('/beranda')->assertRedirect('/ganti-password');
     }
 
+    public function test_route_baru_otomatis_ikut_wajib_ganti_password(): void
+    {
+        // Route baru yang tidak menyebut middleware wajib ganti password sama sekali.
+        Route::middleware(['web', 'auth'])->get('/route-baru-untuk-tes', fn () => 'isi halaman');
+
+        $this->actingAs($this->userWajibGanti())
+            ->get('/route-baru-untuk-tes')
+            ->assertRedirect('/ganti-password');
+
+        $this->actingAs($this->buatUser(Role::Siswa))
+            ->get('/route-baru-untuk-tes')
+            ->assertOk()
+            ->assertSee('isi halaman');
+    }
+
     public function test_tetap_bisa_logout_walau_wajib_ganti(): void
     {
         $this->actingAs($this->userWajibGanti())
@@ -67,6 +83,55 @@ class GantiPasswordTest extends TestCase
         $this->assertTrue(Hash::check('rahasia-baru', $siswa->password));
 
         $this->get('/beranda')->assertOk();
+    }
+
+    public function test_pesan_sukses_tampil_lewat_layout(): void
+    {
+        // Halaman tujuan (/beranda sementara) tidak menulis pesan ini sendiri;
+        // yang menampilkan adalah layout, jadi halaman asli nanti juga ikut.
+        $this->actingAs($this->userWajibGanti())
+            ->followingRedirects()
+            ->post('/ganti-password', [
+                'password_lama' => 'password',
+                'password_baru' => 'rahasia-baru',
+                'password_baru_confirmation' => 'rahasia-baru',
+            ])
+            ->assertOk()
+            ->assertSee('Password berhasil diganti.');
+    }
+
+    public function test_diblokir_setelah_lima_kali_percobaan_dalam_semenit(): void
+    {
+        $siswa = $this->userWajibGanti();
+        $salah = ['password_lama' => 'tebakan', 'password_baru' => 'rahasia-baru', 'password_baru_confirmation' => 'rahasia-baru'];
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->actingAs($siswa)->from('/ganti-password')->post('/ganti-password', $salah)
+                ->assertSessionHasErrors(['password_lama' => 'Password lama salah.']);
+        }
+
+        // Percobaan ke-6 diblokir walau password lama benar.
+        $this->from('/ganti-password')
+            ->post('/ganti-password', ['password_lama' => 'password'] + $salah)
+            ->assertRedirect('/ganti-password')
+            ->assertSessionHasErrors('password_lama');
+
+        $this->assertStringContainsString(
+            'Terlalu banyak percobaan ganti password',
+            session('errors')->first('password_lama'),
+        );
+        $this->assertTrue(Hash::check('password', $siswa->fresh()->password));
+
+        // Batas dihitung per user: user lain tetap bisa ganti password.
+        $this->actingAs($this->userWajibGanti())
+            ->post('/ganti-password', ['password_lama' => 'password'] + $salah)
+            ->assertRedirect('/beranda');
+
+        // Setelah semenit, user pertama bisa mencoba lagi.
+        $this->travel(61)->seconds();
+        $this->actingAs($siswa)
+            ->post('/ganti-password', ['password_lama' => 'password'] + $salah)
+            ->assertRedirect('/beranda');
     }
 
     public function test_user_biasa_juga_bisa_ganti_password(): void

@@ -7,3 +7,9 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* Sembunyikan tombol "lihat password" bawaan Edge; kita punya tombol sendiri. */
+input::-ms-reveal,
+input::-ms-clear {
+    display: none;
+}

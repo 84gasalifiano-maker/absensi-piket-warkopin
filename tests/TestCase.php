@@ -4,7 +4,9 @@ namespace Tests;
 
 use App\Enums\Role;
 use App\Models\User;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Auth;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -24,5 +26,14 @@ abstract class TestCase extends BaseTestCase
     protected function buatUser(Role $role, array $atribut = []): User
     {
         return User::factory()->role($role)->sudahGantiPassword()->create($atribut);
+    }
+
+    /** Nama cookie "Ingat saya" milik Laravel (remember_web_...). */
+    protected function namaCookieIngatSaya(): string
+    {
+        /** @var SessionGuard $guard */
+        $guard = Auth::guard('web');
+
+        return $guard->getRecallerName();
     }
 }

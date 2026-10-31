@@ -21,24 +21,24 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [LoginController::class, 'store']);
 });
 
+// Selama user wajib ganti password, semua route di bawah ini dialihkan ke
+// /ganti-password oleh middleware WajibGantiPassword (otomatis, lihat bootstrap/app.php).
 Route::middleware('auth')->group(function () {
-    // Dua route ini tetap bisa dibuka walau user masih wajib ganti password.
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
     Route::get('/ganti-password', [GantiPasswordController::class, 'edit'])->name('ganti-password');
-    Route::post('/ganti-password', [GantiPasswordController::class, 'update']);
+    Route::post('/ganti-password', [GantiPasswordController::class, 'update'])
+        ->middleware('throttle:ganti-password'); // maks 5 kali per menit per user (SPEC F1)
 
-    Route::middleware('wajib.ganti.password')->group(function () {
-        // Halaman sementara (Langkah 2). Isinya dibuat di langkah masing-masing.
-        Route::view('/beranda', 'sementara', ['judul' => 'Beranda'])
-            ->middleware('role:siswa,pj_kebersihan')
-            ->name('beranda');
+    // Halaman sementara (Langkah 2). Isinya dibuat di langkah masing-masing.
+    Route::view('/beranda', 'sementara', ['judul' => 'Beranda'])
+        ->middleware('role:siswa,pj_kebersihan')
+        ->name('beranda');
 
-        Route::view('/verifikasi', 'sementara', ['judul' => 'Antrean verifikasi'])
-            ->middleware('role:pj_kebersihan,guru')
-            ->name('verifikasi');
+    Route::view('/verifikasi', 'sementara', ['judul' => 'Antrean verifikasi'])
+        ->middleware('role:pj_kebersihan,guru')
+        ->name('verifikasi');
 
-        Route::view('/admin', 'sementara', ['judul' => 'Admin'])
-            ->middleware('role:admin')
-            ->name('admin');
-    });
+    Route::view('/admin', 'sementara', ['judul' => 'Admin'])
+        ->middleware('role:admin')
+        ->name('admin');
 });

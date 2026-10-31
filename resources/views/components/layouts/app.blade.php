@@ -30,6 +30,11 @@
         @endauth
 
         <main class="mx-auto max-w-md px-4 py-8">
+            {{-- Pesan sukses dari redirect()->with('status', ...), tampil di semua halaman. --}}
+            @if (session('status'))
+                <p role="status" class="mb-4 rounded-lg bg-green-50 p-3 text-green-900">{{ session('status') }}</p>
+            @endif
+
             {{ $slot }}
         </main>
     </body>

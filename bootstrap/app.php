@@ -16,7 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => CekRole::class,
-            'wajib.ganti.password' => WajibGantiPassword::class,
+        ]);
+
+        // Berlaku untuk semua route web, termasuk route yang ditambahkan nanti (SPEC F1).
+        $middleware->web(append: [
+            WajibGantiPassword::class,
         ]);
 
         // User yang sudah login lalu membuka /login dialihkan ke halaman awal role-nya.
