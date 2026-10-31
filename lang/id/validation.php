@@ -173,9 +173,12 @@ return [
 
     /*
     | Nama field yang ramah dibaca, menggantikan nama kolom di pesan error.
-    | Hanya kolom yang ada di SPEC bagian 6.
+    | Hanya kolom yang ada di SPEC bagian 6 dan field form di SPEC bagian 8.
     */
     'attributes' => [
+        'login' => 'NIS atau email',
+        'password_lama' => 'Password lama',
+        'password_baru' => 'Password baru',
         'nama' => 'Nama',
         'email' => 'Email',
         'nis' => 'NIS',

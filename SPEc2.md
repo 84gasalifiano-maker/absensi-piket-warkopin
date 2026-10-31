@@ -46,6 +46,8 @@ Aturan:
   - `admin` → `/admin`
 - Akun dibuat admin (import CSV atau form), bukan daftar sendiri.
 - Reset password dilakukan admin. Saat login pertama, user wajib ganti password.
+  - Selama wajib ganti password, semua halaman dialihkan ke `/ganti-password` (kecuali logout).
+  - Password baru: minimal 8 karakter, harus berbeda dari password lama, dan diketik dua kali (konfirmasi).
 - Batasi percobaan login gagal (maks 5 kali per menit per NIS/email + IP).
 
 ### F2. Jadwal Piket
@@ -145,6 +147,7 @@ Aplikasi berbasis halaman (Laravel + Blade), bukan API terpisah. Semua route kec
 
 | Method | Route | Role | Keterangan |
 |---|---|---|---|
+| GET | / | publik | alihkan ke `/login`, atau ke halaman awal role (F1) kalau sudah login |
 | GET/POST | /login | publik | satu halaman login untuk semua role |
 | POST | /logout | semua | |
 | GET/POST | /ganti-password | semua | wajib saat login pertama |

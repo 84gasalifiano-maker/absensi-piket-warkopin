@@ -8,10 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-// user_id, class_id, terlambat, dan status sengaja tidak fillable: pemilik,
-// kelas, dan keterlambatan ditentukan server (user login & now()), bukan
-// dari input form. Isi eksplisit lewat relasi atau forceFill.
-#[Fillable(['tanggal', 'catatan', 'alasan_terlambat'])]
+// user_id, class_id, tanggal, terlambat, dan status sengaja tidak fillable:
+// pemilik, kelas, tanggal, dan keterlambatan ditentukan server (user login &
+// now()), bukan dari input form. Isi eksplisit lewat forceFill.
+#[Fillable(['catatan', 'alasan_terlambat'])]
 class Submission extends Model
 {
     /** Tabel ini hanya punya created_at (waktu server saat submit). */
