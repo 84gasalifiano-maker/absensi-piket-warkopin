@@ -1,3 +1,5 @@
+@CLAUDe2.md
+
 <laravel-boost-guidelines>
 # Laravel Application
 

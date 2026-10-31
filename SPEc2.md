@@ -3,7 +3,7 @@
 > Dokumen ini adalah sumber kebenaran tunggal. Semua kode harus sesuai dengan dokumen ini.
 > Kalau ada perubahan fitur, ubah dokumen ini DULU, baru kode.
 
-Status: DRAFT v0.3
+Status: DRAFT v0.4
 Bagian bertanda **[KEPUTUSAN TERBUKA]** belum final — putuskan sebelum fitur terkait dikerjakan.
 
 ---
@@ -39,6 +39,7 @@ Aturan:
 - Satu halaman login untuk semua role, dengan satu kolom **"NIS atau email"** + password.
   - `siswa`, `pj_kebersihan` login pakai **NIS**.
   - `guru`, `admin` login pakai **email**.
+- Checkbox **"Ingat saya"**, default **tidak dicentang**. Kalau dicentang, user tetap login walau sesi habis (memakai `users.remember_token`).
 - Setelah login, user diarahkan sesuai role:
   - `siswa`, `pj_kebersihan` → `/beranda`
   - `guru` → `/verifikasi`
@@ -111,9 +112,10 @@ Flag terpisah: terlambat (true/false) + alasan_terlambat
 schools          id, nama, jam_buka_pagi, jam_tutup_pagi, jam_buka_siang, jam_tutup_siang
 classes          id, school_id, nama (mis. "XI RPL 1"), wali_kelas_id → users.id
 users            id, school_id, class_id (null utk guru/admin), nama,
-                 email (unik, null boleh utk siswa/pj), nis (unik per sekolah, null utk guru/admin),
-                 no_absen (null utk guru/admin), password, role, harus_ganti_password, created_at
-                 UNIQUE(school_id, nis), UNIQUE(class_id, no_absen)
+                 email (unik, null boleh utk siswa/pj), nis (unik global, null utk guru/admin),
+                 no_absen (null utk guru/admin), password, role, harus_ganti_password,
+                 remember_token ("Ingat saya", F1), created_at, updated_at
+                 UNIQUE(nis), UNIQUE(class_id, no_absen)
 duty_schedules   id, class_id, hari (1=Senin … 6=Sabtu, dibatasi CHECK 1–6), user_id
                  UNIQUE(class_id, hari, user_id)
 submissions      id, user_id, class_id, tanggal, catatan,
@@ -129,7 +131,13 @@ Aturan:
 - Tidak ada data yang disimpan dua kali (mis. nama kelas cukup di `classes`).
 - Timezone aplikasi: `Asia/Jakarta`.
 - `role` dan `harus_ganti_password` tidak boleh diisi lewat mass assignment; diisi eksplisit oleh kode admin.
-- **[KEPUTUSAN TERBUKA]** NIS saat ini unik **per sekolah**, tapi halaman login tidak memilih sekolah. Kalau nanti ada lebih dari satu sekolah, NIS yang sama di dua sekolah membuat login ambigu. Putuskan sebelum F1: jadikan NIS unik global, atau tetap per sekolah (aplikasi dipakai satu sekolah saja).
+- NIS unik **global** (bukan per sekolah), karena halaman login tidak memilih sekolah: satu NIS harus menunjuk tepat satu akun.
+
+Tabel bawaan Laravel (ada dan memang dipakai, tidak termasuk model data aplikasi di atas):
+- `sessions` — sesi login (`SESSION_DRIVER=database`).
+- `cache`, `cache_locks` — cache, termasuk penghitung batas percobaan login F1 (`CACHE_STORE=database`).
+- `jobs`, `job_batches`, `failed_jobs` — antrean tugas (`QUEUE_CONNECTION=database`).
+- Tabel `password_reset_tokens` **tidak** dipakai: reset password dilakukan admin (F1), bukan lewat email.
 
 ## 7. Halaman & Route
 
@@ -160,7 +168,7 @@ Pesan error ke user dalam bahasa Indonesia, mis. "Kamu tidak terjadwal piket har
 
 | Layar | Role | Isi utama |
 |---|---|---|
-| Login | semua | NIS atau email, password |
+| Login | semua | NIS atau email, password, checkbox "Ingat saya" (default tidak dicentang) |
 | Ganti password | semua | password lama, baru, konfirmasi |
 | Beranda | siswa, pj | "Hari ini kamu piket / tidak", jam tepat waktu, tombol Submit, status submit hari ini |
 | Form submit | siswa, pj | ambil foto, catatan, field alasan terlambat (muncul hanya jika sudah lewat jam) |

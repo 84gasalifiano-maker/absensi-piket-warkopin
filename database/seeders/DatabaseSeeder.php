@@ -14,14 +14,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Akun contoh memakai password yang mudah ditebak,
-        // jadi hanya boleh dibuat di lingkungan lokal.
-        if (! app()->environment('local')) {
-            $this->command?->warn('DataContohSeeder dilewati: hanya untuk APP_ENV=local.');
-
-            return;
-        }
-
+        // DataContohSeeder sendiri yang menolak jalan di luar APP_ENV=local.
         $this->call(DataContohSeeder::class);
     }
 }

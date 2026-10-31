@@ -7,9 +7,13 @@ use App\Models\School;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 /**
+ * Mengikuti aturan SPEC F1:
+ * - siswa & PJ login pakai NIS (tanpa email), guru & admin pakai email (tanpa NIS);
+ * - akun baru wajib ganti password saat login pertama;
+ * - "Ingat saya" default tidak dicentang, jadi akun baru belum punya remember_token.
+ *
  * @extends Factory<User>
  */
 class UserFactory extends Factory
@@ -20,7 +24,7 @@ class UserFactory extends Factory
     protected static ?string $password;
 
     /**
-     * Default: akun siswa (login pakai NIS, tanpa email) tanpa kelas.
+     * Default: akun siswa baru tanpa kelas.
      * Set class_id & no_absen lewat atribut bila perlu.
      *
      * @return array<string, mixed>
@@ -36,37 +40,42 @@ class UserFactory extends Factory
             'no_absen' => null,
             'password' => static::$password ??= Hash::make('password'),
             'role' => Role::Siswa,
-            'harus_ganti_password' => false,
-            'remember_token' => Str::random(10),
+            'harus_ganti_password' => true,
+            'remember_token' => null,
         ];
     }
 
     /**
-     * Akun dengan role tertentu.
-     * Guru & admin login pakai email: tanpa NIS, kelas, dan no. absen.
+     * Akun dengan role tertentu, lengkap dengan identitas login yang sesuai.
      */
     public function role(Role $role): static
     {
         return $this->state(function (array $attributes) use ($role) {
-            if (! in_array($role, [Role::Guru, Role::Admin], true)) {
-                return ['role' => $role];
+            // Guru & admin: login pakai email; tanpa NIS, kelas, dan no. absen.
+            if (in_array($role, [Role::Guru, Role::Admin], true)) {
+                return [
+                    'role' => $role,
+                    'email' => $attributes['email'] ?? fake()->unique()->safeEmail(),
+                    'nis' => null,
+                    'class_id' => null,
+                    'no_absen' => null,
+                ];
             }
 
+            // Siswa & PJ: login pakai NIS; tanpa email.
             return [
                 'role' => $role,
-                'email' => fake()->unique()->safeEmail(),
-                'nis' => null,
-                'class_id' => null,
-                'no_absen' => null,
+                'email' => null,
+                'nis' => $attributes['nis'] ?? fake()->unique()->numerify('########'),
             ];
         });
     }
 
     /**
-     * Akun yang wajib ganti password saat login pertama.
+     * Akun yang sudah mengganti password (tidak dipaksa ganti lagi saat login).
      */
-    public function harusGantiPassword(): static
+    public function sudahGantiPassword(): static
     {
-        return $this->state(['harus_ganti_password' => true]);
+        return $this->state(['harus_ganti_password' => false]);
     }
 }

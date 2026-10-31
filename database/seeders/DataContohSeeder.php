@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\Hash;
 
 /**
  * Data contoh untuk pengembangan lokal: 1 sekolah, 2 kelas, akun tiap role.
- * Dipanggil hanya dari DatabaseSeeder saat APP_ENV=local.
+ * Menolak jalan kalau APP_ENV bukan local, termasuk saat dipanggil langsung
+ * (php artisan db:seed --class=DataContohSeeder), karena passwordnya mudah ditebak.
  *
  * - Semua akun berpassword "password".
  * - Semua nama & NIS PALSU. Nama dibuat Faker (seed tetap, jadi hasilnya sama
@@ -34,6 +35,12 @@ class DataContohSeeder extends Seeder
 
     public function run(): void
     {
+        if (! app()->environment('local')) {
+            $this->command?->warn('DataContohSeeder dilewati: hanya boleh jalan saat APP_ENV=local.');
+
+            return;
+        }
+
         $this->faker = FakerFactory::create('id_ID');
         $this->faker->seed(2026);
 

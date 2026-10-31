@@ -23,17 +23,18 @@ return new class extends Migration
             $table->unsignedBigInteger('class_id')->nullable();
             $table->string('nama');
             $table->string('email')->nullable()->unique(); // login guru & admin; boleh null untuk siswa/PJ
-            $table->string('nis', 30)->nullable(); // login siswa & PJ; null untuk guru & admin
+            // Login siswa & PJ; null untuk guru & admin. Unik global (bukan per
+            // sekolah) karena halaman login tidak memilih sekolah (SPEC bagian 6).
+            $table->string('nis', 30)->nullable()->unique();
             $table->unsignedTinyInteger('no_absen')->nullable(); // null untuk guru & admin
             $table->string('password');
             $table->enum('role', ['siswa', 'pj_kebersihan', 'guru', 'admin']);
             $table->boolean('harus_ganti_password')->default(true);
-            $table->rememberToken();
+            $table->rememberToken(); // untuk "Ingat saya" di login (SPEC F1)
             $table->timestamps();
 
             // MySQL mengizinkan banyak NULL di unique index, jadi guru/admin
             // (nis & no_absen null) tidak bentrok satu sama lain.
-            $table->unique(['school_id', 'nis']);     // NIS unik per sekolah
             $table->unique(['class_id', 'no_absen']); // no. absen unik per kelas
         });
 
