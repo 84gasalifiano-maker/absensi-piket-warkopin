@@ -24,10 +24,13 @@ use Illuminate\Support\Facades\Hash;
  *   no. absen 1 adalah PJ kebersihan. XI RPL 2: kelas kecil, 4 siswa.
  * - Siswa/PJ login pakai NIS (tanpa email). Guru/admin login pakai email.
  * - Guru tidak punya class_id; kelasnya hanya dari classes.wali_kelas_id.
+ * - Belum ada jadwal piket & hari libur: diisi lewat halaman masing-masing (SPEC §11).
  */
 class DataContohSeeder extends Seeder
 {
     private const PASSWORD = 'password';
+
+    private const TANGGAL_MULAI_ROTASI = '2026-10-26'; // Senin
 
     private Generator $faker;
 
@@ -75,6 +78,9 @@ class DataContohSeeder extends Seeder
             'school_id' => $school->id,
             'nama' => $nama,
             'wali_kelas_id' => $guru->id,
+            // Wajib, harus hari Senin (SPEC F2). Tanggal tetap untuk data contoh,
+            // disetujui pemilik proyek (SPEC §11 Langkah 3, v0.7).
+            'tanggal_mulai_rotasi' => self::TANGGAL_MULAI_ROTASI,
         ]);
 
         for ($noAbsen = 1; $noAbsen <= $jumlahSiswa; $noAbsen++) {

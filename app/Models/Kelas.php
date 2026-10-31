@@ -13,9 +13,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Tabel `classes`. Nama model "Kelas" karena `Class` adalah kata terlarang di PHP.
  */
 #[Table(name: 'classes', timestamps: false)]
-#[Fillable(['school_id', 'nama', 'wali_kelas_id'])]
+#[Fillable(['school_id', 'nama', 'wali_kelas_id', 'tanggal_mulai_rotasi'])]
 class Kelas extends Model
 {
+    /** @return array<string, string> */
+    protected function casts(): array
+    {
+        return [
+            // Titik awal hitungan rotasi tugas mingguan (SPEC F2). Wajib diisi.
+            'tanggal_mulai_rotasi' => 'date',
+        ];
+    }
+
     /** @return BelongsTo<School, $this> */
     public function school(): BelongsTo
     {

@@ -27,4 +27,10 @@ class School extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    /** @return HasMany<HariLibur, $this> */
+    public function hariLibur(): HasMany
+    {
+        return $this->hasMany(HariLibur::class);
+    }
 }

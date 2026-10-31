@@ -3,14 +3,16 @@
 namespace App\Models;
 
 use App\Enums\SubmissionStatus;
+use App\Enums\Tugas;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-// user_id, class_id, tanggal, terlambat, dan status sengaja tidak fillable:
-// pemilik, kelas, tanggal, dan keterlambatan ditentukan server (user login &
-// now()), bukan dari input form. Isi eksplisit lewat forceFill.
+// user_id, class_id, tanggal, tugas, terlambat, dan status sengaja tidak
+// fillable: pemilik, kelas, tanggal, tugas (hasil rotasi), dan keterlambatan
+// ditentukan server (user login & now()), bukan dari input form (SPEC F3).
+// Isi eksplisit lewat forceFill.
 #[Fillable(['catatan', 'alasan_terlambat'])]
 class Submission extends Model
 {
@@ -32,6 +34,7 @@ class Submission extends Model
     {
         return [
             'tanggal' => 'date',
+            'tugas' => Tugas::class,
             'status' => SubmissionStatus::class,
             'terlambat' => 'boolean',
             'verified_at' => 'datetime',
