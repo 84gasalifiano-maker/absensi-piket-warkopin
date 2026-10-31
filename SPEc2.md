@@ -3,7 +3,7 @@
 > Dokumen ini adalah sumber kebenaran tunggal. Semua kode harus sesuai dengan dokumen ini.
 > Kalau ada perubahan fitur, ubah dokumen ini DULU, baru kode.
 
-Status: DRAFT v0.2
+Status: DRAFT v0.3
 Bagian bertanda **[KEPUTUSAN TERBUKA]** belum final — putuskan sebelum fitur terkait dikerjakan.
 
 ---
@@ -23,26 +23,29 @@ Mencatat siapa yang piket hari ini, apakah piketnya sudah dikerjakan, dan buktin
 |---|---|---|
 | `siswa` | Semua murid | Lihat jadwal piket sendiri, submit bukti piket, lihat riwayat sendiri |
 | `pj_kebersihan` | Penanggung jawab seksi kebersihan (juga siswa) | Semua hak `siswa` + verifikasi submit di kelasnya + lihat rekap kelasnya + kelola jadwal piket kelasnya |
-| `guru` | Wali kelas | Verifikasi submit di kelasnya, lihat rekap kelasnya, kelola jadwal piket kelasnya |
+| `guru` | Wali kelas | Verifikasi submit di kelas yang diwalikannya, lihat rekap kelas itu, kelola jadwal piket kelas itu |
 | `admin` | Pengelola sekolah | Kelola kelas, akun, pengaturan jam; lihat rekap semua kelas |
 
 Aturan:
 - Satu user = satu role.
 - `siswa`, `pj_kebersihan`, dan `guru` hanya bisa melihat data **kelasnya sendiri**.
+- Kelas siswa/PJ ditentukan dari `users.class_id`. Kelas guru ditentukan **hanya** dari `classes.wali_kelas_id` (`users.class_id` guru selalu null). Satu guru boleh menjadi wali lebih dari satu kelas.
 - `pj_kebersihan` **tidak boleh memverifikasi submit miliknya sendiri** — submit milik PJ hanya bisa diverifikasi `guru`.
 - "Verifikator" di dokumen ini = `pj_kebersihan` atau `guru`.
 
 ## 3. Fitur MVP
 
 ### F1. Login
-- Satu halaman login untuk semua role: email + password.
+- Satu halaman login untuk semua role, dengan satu kolom **"NIS atau email"** + password.
+  - `siswa`, `pj_kebersihan` login pakai **NIS**.
+  - `guru`, `admin` login pakai **email**.
 - Setelah login, user diarahkan sesuai role:
   - `siswa`, `pj_kebersihan` → `/beranda`
   - `guru` → `/verifikasi`
   - `admin` → `/admin`
 - Akun dibuat admin (import CSV atau form), bukan daftar sendiri.
 - Reset password dilakukan admin. Saat login pertama, user wajib ganti password.
-- Batasi percobaan login gagal (maks 5 kali per menit per email+IP).
+- Batasi percobaan login gagal (maks 5 kali per menit per NIS/email + IP).
 
 ### F2. Jadwal Piket
 - Guru/PJ kebersihan/admin mengatur jadwal per kelas: hari Senin → [siswa A, B, C], dst.
@@ -107,9 +110,11 @@ Flag terpisah: terlambat (true/false) + alasan_terlambat
 ```
 schools          id, nama, jam_buka_pagi, jam_tutup_pagi, jam_buka_siang, jam_tutup_siang
 classes          id, school_id, nama (mis. "XI RPL 1"), wali_kelas_id → users.id
-users            id, school_id, class_id (null utk admin), nama, email (unik), nis (unik per sekolah, null utk guru/admin),
-                 password, role, harus_ganti_password, created_at
-duty_schedules   id, class_id, hari (1=Senin … 6=Sabtu), user_id
+users            id, school_id, class_id (null utk guru/admin), nama,
+                 email (unik, null boleh utk siswa/pj), nis (unik per sekolah, null utk guru/admin),
+                 no_absen (null utk guru/admin), password, role, harus_ganti_password, created_at
+                 UNIQUE(school_id, nis), UNIQUE(class_id, no_absen)
+duty_schedules   id, class_id, hari (1=Senin … 6=Sabtu, dibatasi CHECK 1–6), user_id
                  UNIQUE(class_id, hari, user_id)
 submissions      id, user_id, class_id, tanggal, catatan,
                  status (menunggu_verifikasi|disetujui|ditolak|kedaluwarsa),
@@ -123,6 +128,8 @@ Aturan:
 - Cegah dua submit aktif per siswa per tanggal: sebelum insert, cek tidak ada submit dengan status `menunggu_verifikasi`/`disetujui` untuk (user_id, tanggal), di dalam transaksi database.
 - Tidak ada data yang disimpan dua kali (mis. nama kelas cukup di `classes`).
 - Timezone aplikasi: `Asia/Jakarta`.
+- `role` dan `harus_ganti_password` tidak boleh diisi lewat mass assignment; diisi eksplisit oleh kode admin.
+- **[KEPUTUSAN TERBUKA]** NIS saat ini unik **per sekolah**, tapi halaman login tidak memilih sekolah. Kalau nanti ada lebih dari satu sekolah, NIS yang sama di dua sekolah membuat login ambigu. Putuskan sebelum F1: jadikan NIS unik global, atau tetap per sekolah (aplikasi dipakai satu sekolah saja).
 
 ## 7. Halaman & Route
 
@@ -153,7 +160,7 @@ Pesan error ke user dalam bahasa Indonesia, mis. "Kamu tidak terjadwal piket har
 
 | Layar | Role | Isi utama |
 |---|---|---|
-| Login | semua | email, password |
+| Login | semua | NIS atau email, password |
 | Ganti password | semua | password lama, baru, konfirmasi |
 | Beranda | siswa, pj | "Hari ini kamu piket / tidak", jam tepat waktu, tombol Submit, status submit hari ini |
 | Form submit | siswa, pj | ambil foto, catatan, field alasan terlambat (muncul hanya jika sudah lewat jam) |
@@ -179,6 +186,8 @@ Desain: mobile-first, bahasa Indonesia, tombol besar. Halaman admin boleh lebih 
 - Styling: Tailwind CSS (bawaan starter Laravel) — atau Bootstrap kalau lebih familiar
 - Lingkungan lokal: **Laragon** atau **XAMPP** dengan PHP ≥ 8.3 (AppServ hanya dipakai jika versi PHP-nya ≥ 8.3)
 - Hosting: shared hosting/VPS dengan PHP ≥ 8.3, MySQL, dan **cron job** (wajib untuk F7)
+- Bahasa aplikasi: `APP_LOCALE=id` (pesan validasi bahasa Indonesia di `lang/id`).
+- **Ditinjau ulang nanti:** tes otomatis sementara memakai SQLite in-memory (lebih cepat, tanpa setup). SQLite tidak menjalankan CHECK constraint `hari` dan beberapa perilaku MySQL lain — pertimbangkan pindah ke database tes MySQL sebelum fitur yang bergantung pada perilaku khusus MySQL.
 
 ## 11. Urutan Pengerjaan
 1. Setup proyek Laravel + koneksi MySQL + migrasi semua tabel + seeder data contoh (1 sekolah, 2 kelas, akun tiap role)

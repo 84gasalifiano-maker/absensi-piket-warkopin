@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -15,11 +14,14 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // Akun contoh memakai password yang mudah ditebak,
+        // jadi hanya boleh dibuat di lingkungan lokal.
+        if (! app()->environment('local')) {
+            $this->command?->warn('DataContohSeeder dilewati: hanya untuk APP_ENV=local.');
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+            return;
+        }
+
+        $this->call(DataContohSeeder::class);
     }
 }

@@ -8,23 +8,33 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * Foreign key school_id & class_id ditambahkan di migrasi
+     * add_foreign_keys_to_users_table, karena tabel schools & classes
+     * baru dibuat setelah tabel ini (classes.wali_kelas_id butuh users).
      */
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
+            $table->unsignedBigInteger('school_id');
+            // Hanya untuk siswa & PJ. Null untuk guru & admin: kelas guru
+            // ditentukan dari classes.wali_kelas_id (SPEC bagian 2).
+            $table->unsignedBigInteger('class_id')->nullable();
+            $table->string('nama');
+            $table->string('email')->nullable()->unique(); // login guru & admin; boleh null untuk siswa/PJ
+            $table->string('nis', 30)->nullable(); // login siswa & PJ; null untuk guru & admin
+            $table->unsignedTinyInteger('no_absen')->nullable(); // null untuk guru & admin
             $table->string('password');
+            $table->enum('role', ['siswa', 'pj_kebersihan', 'guru', 'admin']);
+            $table->boolean('harus_ganti_password')->default(true);
             $table->rememberToken();
             $table->timestamps();
-        });
 
-        Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('email')->primary();
-            $table->string('token');
-            $table->timestamp('created_at')->nullable();
+            // MySQL mengizinkan banyak NULL di unique index, jadi guru/admin
+            // (nis & no_absen null) tidak bentrok satu sama lain.
+            $table->unique(['school_id', 'nis']);     // NIS unik per sekolah
+            $table->unique(['class_id', 'no_absen']); // no. absen unik per kelas
         });
 
         Schema::create('sessions', function (Blueprint $table) {
@@ -42,8 +52,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('users');
     }
 };
