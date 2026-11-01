@@ -174,6 +174,25 @@ class HapusAkunTest extends AdminTestCase
         $this->assertModelExists($satuSatunya);
     }
 
+    /**
+     * Akun sudah dihapus admin lain di antara buka halaman dan klik hapus → 404.
+     * Untuk admin, bukan pesan "admin terakhir" yang menyesatkan.
+     */
+    public function test_hapus_akun_yang_baru_saja_dihapus(): void
+    {
+        $siswa = $this->siswa();
+        $adminLain = $this->buatUser(Role::Admin, ['school_id' => $this->sekolah->id]);
+
+        foreach ([$siswa, $adminLain] as $akun) {
+            $this->app->afterResolving(HapusAkun::class, fn () => DB::table('users')->where('id', $akun->id)->delete());
+
+            $this->hapus($akun)
+                ->assertNotFound()
+                ->assertSessionMissing('status')
+                ->assertSessionDoesntHaveErrors('hapus');
+        }
+    }
+
     public function test_hapus_pj_tanpa_riwayat(): void
     {
         $pj = $this->siswa(Role::PjKebersihan);

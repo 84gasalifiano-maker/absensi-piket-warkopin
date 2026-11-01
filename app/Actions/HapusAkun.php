@@ -41,6 +41,7 @@ class HapusAkun
 
     /**
      * @throws ValidationException kalau aturan F9 tidak terpenuhi
+     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException kalau akun sudah terhapus
      */
     public function jalankan(User $akun, User $olehAdmin): void
     {
@@ -57,7 +58,9 @@ class HapusAkun
             //   menampilkannya sebagai pesan validasi).
             // Kedua kunci harus sebelum query biasa pertama di transaksi: di MySQL
             // (REPEATABLE READ) hitungan sesudahnya baru memakai data terbaru.
-            User::whereKey($akun->id)->lockForUpdate()->first();
+            // Akun yang baru saja dihapus admin lain → 404 (bukan "dihapus" atau
+            // pesan "admin terakhir" yang menyesatkan).
+            abort_unless(User::whereKey($akun->id)->lockForUpdate()->first(), 404);
 
             if ($alasan = $this->alasanDitolak($akun, $olehAdmin)) {
                 throw ValidationException::withMessages(['hapus' => $alasan]);

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -29,6 +30,8 @@ class KelasController extends Controller
     private const DUPLIKAT_KELAS = [
         [['classes_school_id_nama_unique', 'classes.school_id, classes.nama'], 'nama', 'Nama kelas sudah dipakai di sekolah ini.'],
     ];
+
+    public const PESAN_TIDAK_KOSONG = 'Kelas ini masih punya siswa atau riwayat piket.';
 
     public function index(Request $request): View
     {
@@ -74,11 +77,35 @@ class KelasController extends Controller
 
     public function destroy(Kelas $kelas): RedirectResponse
     {
-        if (! $kelas->bolehDihapus()) {
-            return back()->withErrors(['hapus' => 'Kelas ini masih punya siswa atau riwayat piket.']);
+        try {
+            $dihapus = DB::transaction(function () use ($kelas) {
+                // Kunci baris kelas dulu (sebelum query biasa pertama). Penambahan siswa,
+                // jadwal, atau submit ke kelas ini menunggu kunci ini karena foreign key;
+                // yang selesai duluan terlihat oleh bolehDihapus() di bawah (SPEC F9).
+                // Kelas yang baru saja dihapus admin lain → 404.
+                abort_unless(Kelas::whereKey($kelas->id)->lockForUpdate()->first(), 404);
+
+                if (! $kelas->bolehDihapus()) {
+                    return false;
+                }
+
+                $kelas->delete();
+
+                return true;
+            });
+        } catch (QueryException $e) {
+            // Cadangan: database tetap menolak karena masih ada data yang menunjuk
+            // kelas ini (foreign key) → pesan biasa, bukan halaman error (v0.9).
+            if ($e->getCode() !== '23000') {
+                throw $e;
+            }
+
+            $dihapus = false;
         }
 
-        $kelas->delete();
+        if (! $dihapus) {
+            return back()->withErrors(['hapus' => self::PESAN_TIDAK_KOSONG]);
+        }
 
         return redirect()->route('admin.kelas.index')->with('status', "Kelas {$kelas->nama} dihapus.");
     }

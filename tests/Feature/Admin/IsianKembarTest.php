@@ -187,6 +187,24 @@ class IsianKembarTest extends AdminTestCase
         $this->assertNull($this->kelas->fresh()->wali_kelas_id);
     }
 
+    /**
+     * Kebalikannya: database menolak karena alasan lain (di sini kolom wajib dikosongkan)
+     * sementara guru walinya masih ada → tetap error, tidak disamarkan jadi pesan wali kelas.
+     */
+    public function test_error_lain_tidak_dianggap_wali_hilang(): void
+    {
+        $guru = $this->guru();
+        Kelas::creating(fn (Kelas $kelas) => $kelas->tanggal_mulai_rotasi = null); // NOT NULL → SQLSTATE 23000
+
+        $this->actingAs($this->admin)->from('/admin/kelas')->post('/admin/kelas', [
+            'nama' => 'XI RPL 8', 'wali_kelas_id' => $guru->id, 'tanggal_mulai_rotasi' => '2026-11-02',
+        ])
+            ->assertServerError()
+            ->assertSessionDoesntHaveErrors('wali_kelas_id');
+
+        $this->assertDatabaseMissing('classes', ['nama' => 'XI RPL 8']);
+    }
+
     public function test_tanpa_tabrakan_tetap_tersimpan(): void
     {
         $this->actingAs($this->admin)->post('/admin/akun', [

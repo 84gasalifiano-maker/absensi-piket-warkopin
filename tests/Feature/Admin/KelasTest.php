@@ -3,9 +3,11 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\Role;
+use App\Http\Controllers\Admin\KelasController;
 use App\Http\Requests\Admin\SimpanKelasRequest;
 use App\Models\Kelas;
 use App\Models\School;
+use Illuminate\Support\Facades\DB;
 
 /** SPEC F9 (kelas) + F2 (tanggal_mulai_rotasi). */
 class KelasTest extends AdminTestCase
@@ -203,5 +205,41 @@ class KelasTest extends AdminTestCase
         $this->actingAs($this->admin)->from('/admin/kelas')->delete("/admin/kelas/{$lama->id}")
             ->assertSessionHasErrors($pesan);
         $this->assertModelExists($lama);
+    }
+
+    /**
+     * Siswa ditambahkan ke kelas tepat setelah pengecekan "kelas kosong" lolos, sebelum
+     * kelas dihapus: database menolak (foreign key) → pesan biasa, bukan error 500 (v0.9).
+     */
+    public function test_hapus_kelas_yang_bentrok_dengan_penambahan_siswa(): void
+    {
+        $kosong = $this->kelasBaru('Kelas Kosong');
+        Kelas::deleting(fn () => $this->siswa(Role::Siswa, $kosong));
+
+        $this->actingAs($this->admin)->from('/admin/kelas')->delete("/admin/kelas/{$kosong->id}")
+            ->assertRedirect('/admin/kelas')
+            ->assertSessionHasErrors(['hapus' => KelasController::PESAN_TIDAK_KOSONG])
+            ->assertSessionMissing('status');
+
+        $this->assertModelExists($kosong);
+    }
+
+    /** Kelas yang baru saja dihapus admin lain (setelah halaman dibuka) → 404. */
+    public function test_hapus_kelas_yang_baru_saja_dihapus(): void
+    {
+        $kosong = $this->kelasBaru('Kelas Kosong');
+
+        // Dijalankan sekali, saat kelas dari URL selesai dimuat (sebelum dikunci di controller).
+        $sudah = false;
+        Kelas::retrieved(function (Kelas $kelas) use ($kosong, &$sudah) {
+            if (! $sudah && $kelas->is($kosong)) {
+                $sudah = true;
+                DB::table('classes')->where('id', $kosong->id)->delete();
+            }
+        });
+
+        $this->actingAs($this->admin)->delete("/admin/kelas/{$kosong->id}")
+            ->assertNotFound()
+            ->assertSessionMissing('status');
     }
 }

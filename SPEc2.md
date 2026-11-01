@@ -171,7 +171,7 @@ Keputusan F8 (yang sudah diputuskan ditandai "diputuskan"):
   - **Nama kelas unik per sekolah** (v0.8) → "Nama kelas sudah dipakai di sekolah ini."
   - Wali kelas boleh kosong; pilihan wali hanya akun `guru` di sekolah itu. Satu guru boleh wali lebih dari satu kelas (§2).
   - Karena `tanggal_mulai_rotasi` wajib (F2), form tambah kelas wajib mengisinya, dan tanggalnya harus hari Senin (F2).
-  - Hapus kelas hanya kalau kelas kosong (tanpa siswa, jadwal, dan submit); selain itu ditolak dengan pesan "Kelas ini masih punya siswa atau riwayat piket."
+  - Hapus kelas hanya kalau kelas kosong (tanpa siswa, jadwal, dan submit); selain itu ditolak dengan pesan "Kelas ini masih punya siswa atau riwayat piket." Pesan yang sama juga dipakai kalau siswa/jadwal/submit ditambahkan bersamaan dengan hapus kelas (dicek di dalam transaksi database; bukan halaman error, v0.9).
 - **Akun:** tambah satu per satu, ubah, reset password, hapus (v0.9, menggantikan keputusan lama "tidak ada hapus akun").
   - **Hapus guru, siswa, PJ:** hanya kalau akun belum punya riwayat — siswa/PJ: belum punya submit (PJ juga: belum pernah memverifikasi submit — PJ adalah verifikator, dan database menolak menghapus akun yang tercatat di `submissions.verified_by`); guru: belum pernah memverifikasi submit dan tidak sedang menjadi wali kelas. Kalau sudah punya riwayat, tombol hapus tidak tampil, diganti teks "Akun ini sudah punya riwayat, jadi tidak bisa dihapus. Ubah datanya jika ada yang salah.", dan server juga menolak dengan pesan yang sama. Riwayat piket tetap disimpan permanen (F6).
   - **Admin:** maks **2 admin per sekolah** → menambah admin ke-3 ditolak dengan "Admin sudah mencapai batas maksimal (2)." (dicek di dalam transaksi database, supaya dua penyimpanan bersamaan tidak menghasilkan 3 admin). Admin boleh menghapus admin lain, tidak boleh menghapus dirinya sendiri (tombol tidak tampil & ditolak server), dan minimal harus tersisa 1 admin di sekolah itu (juga dicek di dalam transaksi). Admin boleh mereset password admin lain.
@@ -374,6 +374,13 @@ Halaman dirender server (Blade), jadi tidak ada state "loading" terpisah; cukup 
 - Bahasa aplikasi: `APP_LOCALE=id` (pesan validasi bahasa Indonesia di `lang/id`).
 - **Ditinjau ulang nanti:** tes otomatis sementara memakai SQLite in-memory (lebih cepat, tanpa setup). SQLite tidak menjalankan CHECK constraint `hari` (1–5) dan beberapa perilaku MySQL lain — pertimbangkan pindah ke database tes MySQL sebelum fitur yang bergantung pada perilaku khusus MySQL. Batas hari 1–5 dan nilai enum tugas tetap wajib divalidasi juga di aplikasi.
 
+### Daftar periksa deploy (hosting)
+- `.env`: `APP_ENV=production`, `APP_DEBUG=false`, `APP_KEY` baru (`php artisan key:generate`), `SESSION_ENCRYPT=true`.
+- `SESSION_CONNECTION` **dibiarkan kosong**: sesi harus di koneksi database utama, karena ganti/reset password dan hapus akun menghapus sesi user lewat koneksi itu (F1, F9).
+- **Bahasa pesan error MySQL harus bahasa Inggris** (`lc_messages = en_US`, bawaan MySQL): isian kembar dikenali dari pesan error database (F9). Dengan bahasa lain, isian kembar dari penyimpanan bersamaan tampil sebagai halaman error.
+- MySQL ≥ 8.0.19 / MariaDB ≥ 10.2 (lihat di atas); cron job untuk scheduler (F7).
+- Setelah deploy pertama dengan `SESSION_ENCRYPT=true`, semua user perlu login ulang sekali.
+
 ## 11. Urutan Pengerjaan
 1. Setup proyek Laravel + koneksi MySQL + migrasi semua tabel + seeder data contoh (1 sekolah, 2 kelas, akun tiap role)
 2. F1 Login + redirect per role + middleware role + ganti password
@@ -390,6 +397,7 @@ Halaman dirender server (Blade), jadi tidak ada state "loading" terpisah; cukup 
    Selesai kalau: admin bisa tambah & hapus libur; role lain mendapat 403; daftar kosong menampilkan "Belum ada hari libur."; keterangan kosong ditolak ("Keterangan wajib diisi.").
 7. Halaman admin: pengaturan jam buka/tutup (`/admin/pengaturan`, F4) — harus selesai sebelum F3 + F4.
 8. F2 Jadwal piket + tugas awal + rotasi (fungsi rotasi sudah ada sejak Langkah 3).
+   Ditinjau ulang di langkah ini (catatan review Langkah 4): kalau dua admin memindahkan siswa yang sama pada saat bersamaan, jadwal di kelas perantara bisa tertinggal (`AkunController::update` membaca kelas lama dari data sebelum baris akun dikunci).
    Selesai kalau (contoh tes, `tanggal_mulai_rotasi` = Senin 2 Nov 2026, `tugas_awal` = menyapu): tugas 2–6 Nov = menyapu, 9 Nov = merapikan, 16 Nov = mengepel, 23 Nov = menyapu; simpan siswa ke-10 di satu hari ditolak; simpan siswa ke-4 dengan tugas yang sama di satu hari ditolak; pilihan hari Sabtu tidak ada dan ditolak server; jadwal diatur sebelum `tanggal_mulai_rotasi` → ringkasan & pratinjau memakai `tugas_awal`.
 9. F3 + F4 Submit dengan batas waktu & keterlambatan (+ `submissions.tugas` diisi server, aturan tanggal libur dan tanggal sebelum `tanggal_mulai_rotasi`).
    Selesai kalau: `submissions.tugas` sesuai rotasi walau form dikirim dengan nilai tugas lain; perilaku di tanggal libur sesuai keputusan F3; submit sebelum `tanggal_mulai_rotasi` ditolak.
