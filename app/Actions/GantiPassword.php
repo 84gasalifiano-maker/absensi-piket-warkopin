@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
  * Dipakai di dua tempat:
  * - user ganti password sendiri (GantiPasswordController): setelah ini,
  *   perangkat yang sedang dipakai di-login-kan ulang oleh controller;
- * - admin mereset password (Langkah 3): panggil dengan $harusGantiPassword = true.
+ * - admin mereset password (Langkah 4, AkunController::resetPassword): panggil dengan $harusGantiPassword = true.
  *
  * $harusGantiPassword sengaja tanpa nilai default, supaya pemanggil selalu
  * memutuskan secara eksplisit (reset admin yang lupa mengisinya akan error).
@@ -32,7 +32,7 @@ class GantiPassword
             ])->save();
 
             // Hapus semua sesi login user ini (SESSION_DRIVER=database, SPEC bagian 6).
-            DB::table('sessions')->where('user_id', $user->id)->delete();
+            DB::table(config('session.table'))->where('user_id', $user->id)->delete();
         });
     }
 }

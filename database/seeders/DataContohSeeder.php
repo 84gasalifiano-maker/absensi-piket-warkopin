@@ -74,8 +74,8 @@ class DataContohSeeder extends Seeder
     {
         $guru = $this->buatAkun($school, Role::Guru, nama: $this->namaPalsu(), email: $emailGuru);
 
-        $kelas = Kelas::create([
-            'school_id' => $school->id,
+        // Lewat relasi sekolah: school_id tidak fillable (SPEC §6).
+        $kelas = $school->kelas()->create([
             'nama' => $nama,
             'wali_kelas_id' => $guru->id,
             // Wajib, harus hari Senin (SPEC F2). Tanggal tetap untuk data contoh,

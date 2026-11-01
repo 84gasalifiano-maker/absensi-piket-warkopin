@@ -14,7 +14,7 @@
             <span>Ingat saya</span>
         </label>
 
-        <button type="submit" class="w-full rounded-lg bg-blue-600 px-4 py-3 text-base font-semibold text-white hover:bg-blue-700">
+        <button type="submit" data-teks-proses="Memproses…" class="w-full rounded-lg bg-blue-600 px-4 py-3 text-base font-semibold text-white hover:bg-blue-700">
             Masuk
         </button>
     </form>

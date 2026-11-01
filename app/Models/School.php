@@ -16,6 +16,16 @@ class School extends Model
     /** @use HasFactory<SchoolFactory> */
     use HasFactory;
 
+    /** Maks admin per sekolah (SPEC F9, v0.9). */
+    public const MAKS_ADMIN = 2;
+
+    public const PESAN_ADMIN_PENUH = 'Admin sudah mencapai batas maksimal ('.self::MAKS_ADMIN.').';
+
+    public function jumlahAdmin(): int
+    {
+        return $this->users()->where('role', \App\Enums\Role::Admin)->count();
+    }
+
     /** @return HasMany<Kelas, $this> */
     public function kelas(): HasMany
     {

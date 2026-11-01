@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Admin\AkunController;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\KelasController;
 use App\Http\Controllers\Auth\GantiPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Http\Request;
@@ -38,7 +41,24 @@ Route::middleware('auth')->group(function () {
         ->middleware('role:pj_kebersihan,guru')
         ->name('verifikasi');
 
-    Route::view('/admin', 'sementara', ['judul' => 'Admin'])
-        ->middleware('role:admin')
-        ->name('admin');
+    // Halaman admin (SPEC F9, §7). Semua /admin/* hanya untuk admin.
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/admin', DashboardController::class)->name('admin');
+
+        Route::prefix('admin')->name('admin.')->group(function () {
+            Route::get('/kelas', [KelasController::class, 'index'])->name('kelas.index');
+            Route::post('/kelas', [KelasController::class, 'store'])->name('kelas.store');
+            Route::get('/kelas/{kelas}/edit', [KelasController::class, 'edit'])->name('kelas.edit');
+            Route::put('/kelas/{kelas}', [KelasController::class, 'update'])->name('kelas.update');
+            Route::delete('/kelas/{kelas}', [KelasController::class, 'destroy'])->name('kelas.destroy');
+
+            Route::get('/akun', [AkunController::class, 'index'])->name('akun.index');
+            Route::post('/akun', [AkunController::class, 'store'])->name('akun.store');
+            Route::get('/akun/baru', [AkunController::class, 'create'])->name('akun.create');
+            Route::get('/akun/{akun}/edit', [AkunController::class, 'edit'])->name('akun.edit');
+            Route::put('/akun/{akun}', [AkunController::class, 'update'])->name('akun.update');
+            Route::post('/akun/{akun}/reset-password', [AkunController::class, 'resetPassword'])->name('akun.reset-password');
+            Route::delete('/akun/{akun}', [AkunController::class, 'destroy'])->name('akun.destroy');
+        });
+    });
 });

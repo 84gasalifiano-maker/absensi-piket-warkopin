@@ -47,7 +47,7 @@ return [
     |
     */
 
-    'encrypt' => env('SESSION_ENCRYPT', false),
+    'encrypt' => env('SESSION_ENCRYPT', true), // SPEC §6 (v0.9): tetap terenkripsi walau .env lupa diisi
 
     /*
     |--------------------------------------------------------------------------

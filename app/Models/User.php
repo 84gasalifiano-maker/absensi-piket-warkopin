@@ -12,9 +12,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-// role & harus_ganti_password sengaja tidak fillable: keduanya hanya boleh
-// diubah eksplisit oleh kode admin, bukan dari input form.
-#[Fillable(['school_id', 'class_id', 'nama', 'email', 'nis', 'no_absen', 'password'])]
+// role, harus_ganti_password, dan school_id sengaja tidak fillable: hanya boleh
+// diisi eksplisit oleh kode admin (forceFill), bukan dari input form (SPEC §6).
+// class_id fillable karena memang dipilih admin di form akun, setelah divalidasi
+// harus kelas di sekolah admin itu.
+#[Fillable(['class_id', 'nama', 'email', 'nis', 'no_absen', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -40,6 +42,7 @@ class User extends Authenticatable
             'role' => Role::class,
             'harus_ganti_password' => 'boolean',
             'no_absen' => 'integer',
+            'class_id' => 'integer', // dibandingkan saat pindah kelas (SPEC F9)
         ];
     }
 
@@ -75,6 +78,13 @@ class User extends Authenticatable
     public function dutySchedules(): HasMany
     {
         return $this->hasMany(DutySchedule::class);
+    }
+
+    /** Siswa/PJ ini punya jadwal piket di kelasnya sekarang (dipakai saat pindah kelas, SPEC F9). */
+    public function punyaJadwalDiKelasnya(): bool
+    {
+        return $this->class_id !== null
+            && $this->dutySchedules()->where('class_id', $this->class_id)->exists();
     }
 
     /** @return HasMany<Submission, $this> */

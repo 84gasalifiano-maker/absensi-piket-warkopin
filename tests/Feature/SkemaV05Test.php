@@ -29,8 +29,7 @@ class SkemaV05Test extends TestCase
         parent::setUp();
 
         $this->school = School::factory()->create();
-        $this->kelas = Kelas::create([
-            'school_id' => $this->school->id,
+        $this->kelas = $this->school->kelas()->create([
             'nama' => 'XI RPL 1',
             'tanggal_mulai_rotasi' => '2026-11-02',
         ]);

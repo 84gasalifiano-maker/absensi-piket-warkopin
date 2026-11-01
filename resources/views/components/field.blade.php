@@ -3,9 +3,13 @@
     Untuk type="password", otomatis ada tombol tampilkan/sembunyikan (SPEC F1).
     Perilaku tombol ada di resources/js/app.js.
 --}}
-@props(['name', 'label', 'type' => 'text'])
+@props(['name', 'label', 'type' => 'text', 'value' => null, 'bantuan' => null])
 
 @php($password = $type === 'password')
+{{-- Setelah validasi gagal, pakai isian terakhir (juga kalau dikosongkan), bukan nilai lama. --}}
+@php($isian = session()->hasOldInput() ? old($name) : $value)
+{{-- Isian lama berbentuk array (kiriman tidak wajar) dianggap kosong, bukan error. --}}
+@php($isian = is_scalar($isian) ? $isian : null)
 
 <div>
     <label for="{{ $name }}" class="mb-1 block font-medium">{{ $label }}</label>
@@ -14,12 +18,15 @@
             id="{{ $name }}"
             name="{{ $name }}"
             type="{{ $type }}"
-            @unless ($password) value="{{ old($name) }}" @endunless
+            @unless ($password) value="{{ $isian }}" @endunless
             {{ $attributes->class([
                 'block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30',
                 'pr-14' => $password,
             ]) }}
-            @error($name) aria-invalid="true" aria-describedby="{{ $name }}-error" @enderror
+            @error($name) aria-invalid="true" @enderror
+            @if ($bantuan || $errors->has($name))
+                aria-describedby="{{ trim(($bantuan ? $name.'-bantuan ' : '').($errors->has($name) ? $name.'-error' : '')) }}"
+            @endif
         >
 
         @if ($password)
@@ -43,6 +50,9 @@
             </button>
         @endif
     </div>
+    @if ($bantuan)
+        <p id="{{ $name }}-bantuan" class="mt-1 text-sm text-gray-600">{{ $bantuan }}</p>
+    @endif
     @error($name)
         <p id="{{ $name }}-error" class="mt-1 text-sm text-red-700">{{ $message }}</p>
     @enderror

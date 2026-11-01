@@ -30,6 +30,33 @@ enum Role: string
     }
 
     /**
+     * Pilihan dropdown [nilai => label].
+     *
+     * @param  list<self>|null  $roles  default: semua role
+     * @return array<string, string>
+     */
+    public static function opsi(?array $roles = null): array
+    {
+        $hasil = [];
+        foreach ($roles ?? self::cases() as $role) {
+            $hasil[$role->value] = $role->label();
+        }
+
+        return $hasil;
+    }
+
+    /** Label tampilan. */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Siswa => 'Siswa',
+            self::PjKebersihan => 'PJ kebersihan',
+            self::Guru => 'Guru',
+            self::Admin => 'Admin',
+        };
+    }
+
+    /**
      * Nama route tujuan setelah login (SPEC F1).
      */
     public function halamanAwal(): string

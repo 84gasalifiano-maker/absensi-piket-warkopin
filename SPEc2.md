@@ -3,7 +3,7 @@
 > Dokumen ini adalah sumber kebenaran tunggal. Semua kode harus sesuai dengan dokumen ini.
 > Kalau ada perubahan fitur, ubah dokumen ini DULU, baru kode.
 
-Status: DRAFT v0.7
+Status: DRAFT v0.9
 Bagian bertanda **[KEPUTUSAN TERBUKA]** belum final — putuskan sebelum fitur terkait dikerjakan.
 
 Perubahan v0.5 (keputusan pemilik proyek): piket hanya Senin–Jumat; tugas piket per siswa (menyapu / merapikan meja & kursi / mengepel) yang berputar tiap minggu; hari libur sekolah (F8).
@@ -11,6 +11,10 @@ Perubahan v0.5 (keputusan pemilik proyek): piket hanya Senin–Jumat; tugas pike
 Perubahan v0.6 (keputusan pemilik proyek): `tanggal_mulai_rotasi` wajib diisi; `hari_libur` unik per (sekolah, tanggal); aturan kelola kelas & akun oleh admin (F9); route admin tambahan (§7); urutan pengerjaan §11 diperbarui.
 
 Perubahan v0.7 (keputusan pemilik proyek): nilai enum tugas final; `tanggal_mulai_rotasi` hanya diubah admin, wajib hari Senin, minggu = Senin–Minggu, sebelum tanggal itu jadwal belum berlaku; keterangan hari libur wajib; ubah role hanya siswa ↔ PJ.
+
+Perubahan v0.8 (keputusan pemilik proyek): `tanggal_mulai_rotasi` terkunci setelah kelas punya submit; pesan & prioritas beranda (F3, §8.1); nama kelas unik per sekolah; konfirmasi pindah kelas hanya kalau ada jadwal; password acak minimal 1 huruf + 1 angka, ditampilkan sekali lewat flash; `school_id` tidak bisa diisi lewat mass assignment; route form ubah kelas (§7).
+
+Perubahan v0.9 (keputusan pemilik proyek): hapus akun oleh admin (menggantikan "tidak ada hapus akun"); maks 2 admin per sekolah; isian kembar yang lolos validasi bersamaan tampil sebagai pesan validasi; sesi dienkripsi (`SESSION_ENCRYPT=true`); kolom tugas (`duty_schedules.tugas_awal`, `submissions.tugas`) di MySQL disimpan sebagai teks + CHECK, bukan ENUM, supaya nilai kosong ditolak database (§6).
 
 ---
 
@@ -82,6 +86,7 @@ Keputusan F2 (yang sudah diputuskan ditandai "diputuskan"):
 - **`classes.tanggal_mulai_rotasi` — diputuskan:**
   - Wajib diisi (NOT NULL, v0.6). Untuk kelas baru, diisi admin saat menambah kelas (F9). Kelas yang sudah ada sebelum migration Langkah 3 diisi oleh migration/seeder.
   - Hanya **admin** yang boleh mengubahnya, di `/admin/kelas` (v0.7). Guru/PJ hanya melihat. Mengubahnya menggeser tugas semua siswa kelas itu.
+  - **Terkunci setelah kelas punya submit** (v0.8): boleh diubah hanya selama kelas belum punya satu pun baris `submissions` (status apa pun, termasuk ditolak/kedaluwarsa). Setelah itu kolom tampil terkunci di form ubah kelas dengan alasan "Tanggal mulai rotasi tidak bisa diubah karena kelas ini sudah punya riwayat piket.", dan server menolak perubahannya dengan pesan yang sama.
   - **Wajib hari Senin** (v0.7) → "Tanggal mulai rotasi harus hari Senin."
   - **Minggu kalender = Senin–Minggu** (v0.7). Minggu ke-0 = Senin `tanggal_mulai_rotasi` sampai Minggu berikutnya; tugas bergeser setiap Senin.
   - **Sebelum `tanggal_mulai_rotasi`: jadwal belum berlaku** (v0.7) — tidak ada kewajiban piket, tidak bisa submit, tidak dihitung terjadwal maupun `tidak_piket` di rekap. Beranda: "Jadwal piket mulai berlaku {tanggal}."
@@ -99,7 +104,7 @@ Keputusan F2 (yang sudah diputuskan ditandai "diputuskan"):
   (b) per siswa (POST tambah/ubah satu siswa, DELETE hapus satu) — tukar di hari yang sudah penuh harus lewat dua langkah.
 
 ### F3. Submit Piket
-- Hanya siswa (termasuk PJ) yang terjadwal hari itu (Senin–Jumat) yang bisa submit, dan hanya kalau jadwal sudah berlaku (tanggal ≥ `tanggal_mulai_rotasi`, F2).
+- Hanya siswa (termasuk PJ) yang terjadwal hari itu (Senin–Jumat) yang bisa submit, dan hanya kalau jadwal sudah berlaku (tanggal ≥ `tanggal_mulai_rotasi`, F2). Submit sebelum tanggal itu ditolak server dengan pesan "Jadwal piket mulai berlaku {tanggal}." (v0.8).
 - Isi: 1–3 foto + catatan opsional.
 - Foto diambil dari kamera (`<input type="file" accept="image/*" capture="environment">`) — sejauh browser mendukung.
 - Waktu submit dicatat oleh **server**, bukan dari HP.
@@ -162,17 +167,25 @@ Keputusan F8 (yang sudah diputuskan ditandai "diputuskan"):
 ### F9. Kelola Kelas & Akun (admin)
 - Semua data yang dilihat & diubah admin dibatasi ke sekolahnya sendiri (`school_id` admin).
 - **Dashboard `/admin`:** tabel semua kelas (nama, wali kelas, PJ kebersihan, jumlah siswa) + menu Kelas, Akun, Pengaturan, Hari libur. Menu ke halaman yang belum dibuat tetap tampil tetapi tidak bisa diklik, dengan tanda "segera".
-- **Kelas:** tambah (nama, wali kelas, `tanggal_mulai_rotasi`), ubah (nama, wali kelas, `tanggal_mulai_rotasi`), hapus. Hanya admin yang boleh mengubah `tanggal_mulai_rotasi` (F2).
+- **Kelas:** tambah (nama, wali kelas, `tanggal_mulai_rotasi`), ubah (nama, wali kelas, `tanggal_mulai_rotasi` — terkunci setelah kelas punya submit, F2), hapus. Hanya admin yang boleh mengubah `tanggal_mulai_rotasi` (F2).
+  - **Nama kelas unik per sekolah** (v0.8) → "Nama kelas sudah dipakai di sekolah ini."
   - Wali kelas boleh kosong; pilihan wali hanya akun `guru` di sekolah itu. Satu guru boleh wali lebih dari satu kelas (§2).
   - Karena `tanggal_mulai_rotasi` wajib (F2), form tambah kelas wajib mengisinya, dan tanggalnya harus hari Senin (F2).
   - Hapus kelas hanya kalau kelas kosong (tanpa siswa, jadwal, dan submit); selain itu ditolak dengan pesan "Kelas ini masih punya siswa atau riwayat piket."
-- **Akun:** tambah satu per satu, ubah, reset password. **Tidak ada hapus akun** — riwayat piket disimpan permanen (F6).
+- **Akun:** tambah satu per satu, ubah, reset password, hapus (v0.9, menggantikan keputusan lama "tidak ada hapus akun").
+  - **Hapus guru, siswa, PJ:** hanya kalau akun belum punya riwayat — siswa/PJ: belum punya submit (PJ juga: belum pernah memverifikasi submit — PJ adalah verifikator, dan database menolak menghapus akun yang tercatat di `submissions.verified_by`); guru: belum pernah memverifikasi submit dan tidak sedang menjadi wali kelas. Kalau sudah punya riwayat, tombol hapus tidak tampil, diganti teks "Akun ini sudah punya riwayat, jadi tidak bisa dihapus. Ubah datanya jika ada yang salah.", dan server juga menolak dengan pesan yang sama. Riwayat piket tetap disimpan permanen (F6).
+  - **Admin:** maks **2 admin per sekolah** → menambah admin ke-3 ditolak dengan "Admin sudah mencapai batas maksimal (2)." (dicek di dalam transaksi database, supaya dua penyimpanan bersamaan tidak menghasilkan 3 admin). Admin boleh menghapus admin lain, tidak boleh menghapus dirinya sendiri (tombol tidak tampil & ditolak server), dan minimal harus tersisa 1 admin di sekolah itu (juga dicek di dalam transaksi). Admin boleh mereset password admin lain.
+  - **Berlaku untuk semua:** konfirmasi sebelum menghapus: "Hapus akun {nama}? Tindakan ini tidak bisa dibatalkan." Jadwal piket milik akun itu ikut terhapus, begitu juga sesi login-nya.
   - `siswa`/`pj_kebersihan`: nama, NIS, kelas, no. absen; tanpa email. `guru`/`admin`: nama, email; tanpa NIS, kelas, no. absen.
   - Maks **2 PJ kebersihan per kelas** → "Kelas {nama} sudah punya 2 PJ kebersihan."
   - **Password awal & hasil reset:** dibuat sistem secara acak, **8 karakter, huruf kecil + angka, tanpa karakter yang mirip (`0`, `o`, `1`, `l`, `i`)**. Ditampilkan **sekali** ke admin setelah simpan/reset, lalu tidak bisa dilihat lagi. User wajib ganti password saat login berikutnya (F1).
+    - Minimal 1 huruf dan 1 angka (v0.8). Dibuat dengan pembangkit acak yang aman (`random_int`).
+    - Ditampilkan lewat pesan sesi sekali pakai (flash) di halaman berikutnya (v0.8); setelah halaman itu dibuka, password hilang dari sesi.
   - Reset password mengeluarkan user dari semua perangkat (F1).
-  - Admin **tidak bisa mereset password akunnya sendiri** (tombol tidak ada & ditolak server); admin memakai `/ganti-password`.
-  - **Pindah kelas** siswa/PJ: tampilkan konfirmasi "Jadwal piket siswa ini di kelas lama akan dihapus." sebelum menyimpan; setelah disimpan, jadwal di kelas lama dihapus (F2).
+  - Admin **tidak bisa mereset password akunnya sendiri** (tombol tidak ada & ditolak server); admin memakai `/ganti-password`. Admin boleh mereset password admin lain.
+- **Isian kembar** (nama kelas, NIS, email, no. absen) yang lolos validasi karena dua penyimpanan bersamaan lalu ditolak database (UNIQUE) ditampilkan sebagai pesan validasi biasa di kolom yang bersangkutan, mis. "NIS sudah dipakai." — bukan halaman error (v0.9).
+  - Sama halnya kalau guru yang dipilih sebagai wali kelas baru saja dihapus admin lain bersamaan: simpan kelas ditolak dengan pesan di kolom wali kelas "Wali kelas harus akun guru di sekolah ini." (v0.9).
+  - **Pindah kelas** siswa/PJ: kalau siswa punya jadwal di kelas lama, tampilkan konfirmasi "Jadwal piket siswa ini di kelas lama akan dihapus." dengan centang "Ya, hapus jadwal lama" yang dicek server; tanpa centang, perubahan tidak disimpan. Kalau siswa belum punya jadwal, tidak perlu konfirmasi (v0.8). Kelas tujuan harus di sekolah yang sama dan tetap memenuhi maks 2 PJ & no. absen unik; setelah disimpan, jadwal di kelas lama dihapus (F2).
   - **Ubah role** (v0.7): hanya antara `siswa` ↔ `pj_kebersihan` (cara menunjuk/mengganti PJ, tetap maks 2 per kelas). Role `guru`/`admin` tidak bisa diubah, dan siswa/PJ tidak bisa diubah menjadi guru/admin.
 - **Import akun CSV:** dikerjakan di langkah tersendiri (§11). **[KEPUTUSAN TERBUKA]** format kolom, penanganan baris duplikat/salah (tolak semua vs lewati baris), dan cara menampilkan password awal banyak akun sekaligus — putuskan sebelum langkah itu.
 
@@ -204,6 +217,7 @@ Flag terpisah: terlambat (true/false) + alasan_terlambat
 schools          id, nama, jam_buka_pagi, jam_tutup_pagi, jam_buka_siang, jam_tutup_siang
 classes          id, school_id, nama (mis. "XI RPL 1"), wali_kelas_id → users.id,
                  tanggal_mulai_rotasi (date, wajib / NOT NULL — F2)
+                 UNIQUE(school_id, nama)
 users            id, school_id, class_id (null utk guru/admin), nama,
                  email (unik, null boleh utk siswa/pj), nis (unik global, null utk guru/admin),
                  no_absen (null utk guru/admin), password, role, harus_ganti_password,
@@ -235,13 +249,15 @@ Aturan:
   Contoh: `tugas_awal = merapikan` (posisi 1), n = 4 → (1 + 4) mod 3 = 2 → `mengepel`.
   Hari libur tidak menghentikan `n`. Rumus ini dihitung di satu tempat saja dan dipakai oleh beranda, submit, dan rekap.
 - **Validasi jadwal (F2):** maks 9 baris per (class_id, hari); maks 3 baris per (class_id, hari, tugas_awal). Cukup dicek dengan `tugas_awal`: semua siswa satu kelas bergeser dengan `n` yang sama, jadi komposisi tugas per hari tetap setiap minggu. Pengecekan dilakukan di dalam transaksi database (PJ dan guru bisa menyimpan bersamaan).
+- **Kolom tugas** (`duty_schedules.tugas_awal`, `submissions.tugas`) di MySQL bertipe teks `VARCHAR(20) NOT NULL` + CHECK nilai `menyapu`/`merapikan`/`mengepel` (v0.9), **bukan ENUM**: kolom ENUM NOT NULL di MySQL diam-diam terisi nilai pertama (`menyapu`) kalau kode lupa mengisinya. Dengan teks + CHECK, nilai kosong maupun nilai lain ditolak database.
 - `duty_schedules.user_id` harus `siswa`/`pj_kebersihan` dengan `users.class_id` = `duty_schedules.class_id` (dicek di server).
 - Timezone aplikasi: `Asia/Jakarta`.
 - `role` dan `harus_ganti_password` tidak boleh diisi lewat mass assignment; diisi eksplisit oleh kode admin.
+- `school_id` di `users` dan `classes` tidak boleh diisi lewat mass assignment (v0.8); diisi dari sekolah admin yang login (mis. `$school->kelas()->create(...)`).
 - NIS unik **global** (bukan per sekolah), karena halaman login tidak memilih sekolah: satu NIS harus menunjuk tepat satu akun.
 
 Tabel bawaan Laravel (ada dan memang dipakai, tidak termasuk model data aplikasi di atas):
-- `sessions` — sesi login (`SESSION_DRIVER=database`).
+- `sessions` — sesi login (`SESSION_DRIVER=database`), isinya dienkripsi (`SESSION_ENCRYPT=true`, v0.9).
 - `cache`, `cache_locks` — cache, termasuk penghitung batas percobaan login F1 (`CACHE_STORE=database`).
 - `jobs`, `job_batches`, `failed_jobs` — antrean tugas (`QUEUE_CONNECTION=database`).
 - Tabel `password_reset_tokens` **tidak** dipakai: reset password dilakukan admin (F1), bukan lewat email.
@@ -265,6 +281,7 @@ Aplikasi berbasis halaman (Laravel + Blade), bukan API terpisah. Semua route kec
 | GET/POST/DELETE | /jadwal | pj, guru, admin | kelola jadwal kelasnya (hari + tugas awal); bentuk POST/DELETE → [KEPUTUSAN TERBUKA] F2 "Cara simpan jadwal" |
 | GET | /admin | admin | dashboard admin (F9) |
 | GET/POST | /admin/kelas | admin | daftar kelas + form tambah / tambah kelas (F9) |
+| GET | /admin/kelas/{id}/edit | admin | form ubah kelas (v0.8) |
 | PUT | /admin/kelas/{id} | admin | ubah kelas |
 | DELETE | /admin/kelas/{id} | admin | hapus kelas (hanya kalau kosong) |
 | GET/POST | /admin/akun | admin | daftar akun (filter kelas & role) / tambah akun (F9) |
@@ -272,6 +289,7 @@ Aplikasi berbasis halaman (Laravel + Blade), bukan API terpisah. Semua route kec
 | GET | /admin/akun/{id}/edit | admin | form ubah akun |
 | PUT | /admin/akun/{id} | admin | ubah akun (termasuk pindah kelas) |
 | POST | /admin/akun/{id}/reset-password | admin | reset password; password baru ditampilkan sekali |
+| DELETE | /admin/akun/{id} | admin | hapus akun (v0.9; hanya kalau aturan F9 terpenuhi) |
 | POST | /admin/akun/import | admin | import akun dari CSV (langkah tersendiri, §11) |
 | GET/POST | /admin/pengaturan | admin | jam buka/tutup |
 | (usulan) GET/POST | /admin/hari-libur | admin | kelola hari libur (F8) — lihat [KEPUTUSAN TERBUKA] di bawah |
@@ -296,7 +314,7 @@ Pesan error ke user dalam bahasa Indonesia, mis. "Kamu tidak terjadwal piket har
 | Kelola jadwal | pj, guru, admin | per siswa: dropdown hari + dropdown tugas awal; ringkasan isi per hari × tugas |
 | Admin | admin | tabel kelas (nama, wali, PJ, jumlah siswa) + menu kelas/akun/pengaturan/hari libur; menu yang belum dibuat tampil dengan tanda "segera" dan tidak bisa diklik |
 | Kelola kelas | admin | daftar kelas + form tambah (nama, wali kelas, tanggal mulai rotasi) / ubah (nama, wali kelas, tanggal mulai rotasi; tanggal harus Senin) + tombol hapus (dengan konfirmasi) |
-| Kelola akun | admin | daftar akun + filter kelas & role; form tambah/ubah (isian mengikuti role); tombol reset password (tidak ada untuk akun sendiri); password baru ditampilkan sekali; konfirmasi saat pindah kelas |
+| Kelola akun | admin | daftar akun + filter kelas & role; form tambah/ubah (isian mengikuti role); tombol reset password (tidak ada untuk akun sendiri); password baru ditampilkan sekali; konfirmasi saat pindah kelas; tombol hapus (dengan konfirmasi) atau teks alasan tidak bisa dihapus |
 | Hari libur | admin | form tambah (tanggal, keterangan) + daftar hari libur + tombol hapus |
 
 Desain: mobile-first, bahasa Indonesia, tombol besar. Halaman admin boleh lebih padat (dipakai di laptop).
@@ -307,7 +325,7 @@ Halaman dirender server (Blade), jadi tidak ada state "loading" terpisah; cukup 
 
 **Beranda (siswa, pj)** — urutan:
 1. Nama, kelas, tanggal hari ini.
-2. Kartu status hari ini — tepat satu dari:
+2. Kartu status hari ini — tepat satu, dipilih menurut **prioritas** (v0.8; yang pertama cocok yang tampil): (1) Sabtu/Minggu → (2) hari libur → (3) sebelum `tanggal_mulai_rotasi` → (4) belum punya jadwal → (5) tidak terjadwal hari ini → (6) terjadwal dengan tugas. Teks masing-masing:
    - terjadwal: "Hari ini kamu piket — tugas: Menyapu" + jam tepat waktu + tombol besar "Submit piket";
    - tidak terjadwal hari ini: "Hari ini kamu tidak piket. Jadwalmu: setiap Rabu.";
    - belum punya jadwal: "Kamu belum punya jadwal piket. Hubungi PJ kebersihan atau wali kelas.";
@@ -365,8 +383,8 @@ Halaman dirender server (Blade), jadi tidak ada state "loading" terpisah; cukup 
    Dimajukan atas permintaan pemilik proyek (v0.7): fungsi hitung rotasi `Tugas::padaTanggal()` + unit test-nya (aslinya bagian Langkah 8). Langkah 8 tinggal memakainya.
    Selesai kalau: `php artisan migrate` jalan tanpa error di database yang sudah berisi data Langkah 1–2; insert `hari = 6` ditolak MySQL; insert dua jadwal untuk (class_id, user_id) yang sama ditolak; dua hari libur dengan (school_id, tanggal) sama ditolak.
 4. Halaman admin (F9): dashboard + kelola kelas + kelola akun (tambah/ubah/reset password, pindah kelas) + middleware `AuthenticateSession` (F1).
-   Termasuk: keluarkan `school_id` dari fillable model `Kelas`; kelas dibuat lewat relasi sekolah admin (`$school->kelas()->create(...)`).
-   Selesai kalau: role lain mendapat 403 di semua `/admin/*`; admin tidak bisa melihat/mengubah data sekolah lain; password acak sesuai aturan F9 dan tampil sekali; reset mengeluarkan user dari semua perangkat; admin tidak bisa mereset akunnya sendiri; PJ ke-3 di satu kelas ditolak; pindah kelas menghapus jadwal kelas lama; `tanggal_mulai_rotasi` bukan Senin ditolak; role `guru`/`admin` tidak bisa diubah dan siswa/PJ tidak bisa dijadikan guru/admin.
+   Termasuk: keluarkan `school_id` dari fillable model `Kelas` dan `User`; kelas dibuat lewat relasi sekolah admin (`$school->kelas()->create(...)`); migration baru UNIQUE(school_id, nama) di `classes`.
+   Selesai kalau: role lain mendapat 403 di semua `/admin/*`; admin tidak bisa melihat/mengubah data sekolah lain; password acak sesuai aturan F9 dan tampil sekali; reset mengeluarkan user dari semua perangkat; admin tidak bisa mereset akunnya sendiri; PJ ke-3 di satu kelas ditolak; pindah kelas menghapus jadwal kelas lama; `tanggal_mulai_rotasi` bukan Senin ditolak; role `guru`/`admin` tidak bisa diubah dan siswa/PJ tidak bisa dijadikan guru/admin; nama kelas kembar di satu sekolah ditolak; `tanggal_mulai_rotasi` kelas yang sudah punya submit tidak bisa diubah; password acak minimal 1 huruf + 1 angka; hapus akun sesuai F9 (siswa dengan submit, guru wali kelas, guru yang pernah memverifikasi ditolak; admin ke-3 ditolak; admin tidak bisa menghapus diri sendiri atau admin terakhir); isian kembar dari penyimpanan bersamaan tampil sebagai pesan validasi.
 5. Halaman admin: import akun CSV (F9). Butuh keputusan dulu: [KEPUTUSAN TERBUKA] import CSV di F9.
 6. Halaman admin: kelola hari libur (F8). Butuh keputusan: route (§7) + butir F8 yang masih terbuka.
    Selesai kalau: admin bisa tambah & hapus libur; role lain mendapat 403; daftar kosong menampilkan "Belum ada hari libur."; keterangan kosong ditolak ("Keterangan wajib diisi.").
@@ -375,6 +393,8 @@ Halaman dirender server (Blade), jadi tidak ada state "loading" terpisah; cukup 
    Selesai kalau (contoh tes, `tanggal_mulai_rotasi` = Senin 2 Nov 2026, `tugas_awal` = menyapu): tugas 2–6 Nov = menyapu, 9 Nov = merapikan, 16 Nov = mengepel, 23 Nov = menyapu; simpan siswa ke-10 di satu hari ditolak; simpan siswa ke-4 dengan tugas yang sama di satu hari ditolak; pilihan hari Sabtu tidak ada dan ditolak server; jadwal diatur sebelum `tanggal_mulai_rotasi` → ringkasan & pratinjau memakai `tugas_awal`.
 9. F3 + F4 Submit dengan batas waktu & keterlambatan (+ `submissions.tugas` diisi server, aturan tanggal libur dan tanggal sebelum `tanggal_mulai_rotasi`).
    Selesai kalau: `submissions.tugas` sesuai rotasi walau form dikirim dengan nilai tugas lain; perilaku di tanggal libur sesuai keputusan F3; submit sebelum `tanggal_mulai_rotasi` ditolak.
+   Teknis: akun bisa dihapus admin (F9) bersamaan dengan submit/verifikasi. Hapus akun mengunci baris akun itu, jadi database menolak submit/verifikasi yang menunjuk akun yang sudah terhapus (foreign key) — tangkap dan tampilkan sebagai pesan, bukan halaman error (berlaku juga untuk Langkah 10).
+   Teknis: tombol submit yang dinonaktifkan dari server (mis. sebelum jam buka, F4) wajib diberi atribut `data-tetap-nonaktif`, supaya tidak diaktifkan lagi oleh skrip pencegah klik ganda (`resources/js/app.js`).
 10. F5 Verifikasi (kartu menampilkan tugas)
 11. F6 Rekap mingguan + CSV (Senin–Jumat, tanggal libur dan tanggal sebelum `tanggal_mulai_rotasi` dikecualikan).
     Selesai kalau: siswa terjadwal Rabu, Rabu libur, tanpa submit → terjadwal 0 dan tidak piket 0 untuk minggu itu; minggu berikutnya tugasnya tetap bergeser satu langkah; minggu sebelum `tanggal_mulai_rotasi` → terjadwal 0 dan tidak piket 0.

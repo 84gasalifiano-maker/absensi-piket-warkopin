@@ -122,13 +122,17 @@ class GantiPasswordTest extends TestCase
         );
         $this->assertTrue(Hash::check('password', $siswa->fresh()->password));
 
-        // Batas dihitung per user: user lain tetap bisa ganti password.
+        // Batas dihitung per user: user lain (di perangkatnya sendiri) tetap bisa ganti password.
+        $this->flushSession();
         $this->actingAs($this->userWajibGanti())
             ->post('/ganti-password', ['password_lama' => 'password'] + $salah)
             ->assertRedirect('/beranda');
 
-        // Setelah semenit, user pertama bisa mencoba lagi.
+        // Setelah semenit, user pertama bisa mencoba lagi (kembali di perangkatnya sendiri).
+        // Sesi dikosongkan: tiap user punya sesi sendiri, dan AuthenticateSession
+        // mengeluarkan sesi yang menyimpan sidik password user lain.
         $this->travel(61)->seconds();
+        $this->flushSession();
         $this->actingAs($siswa)
             ->post('/ganti-password', ['password_lama' => 'password'] + $salah)
             ->assertRedirect('/beranda');

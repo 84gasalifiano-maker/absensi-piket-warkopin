@@ -2,9 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\Kelas;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -35,5 +38,19 @@ class AppServiceProvider extends ServiceProvider
                     ]);
                 });
         });
+
+        // ID di URL hanya angka (mis. /admin/akun/1abc/edit → 404).
+        Route::pattern('kelas', '[0-9]+');
+        Route::pattern('akun', '[0-9]+');
+
+        // {kelas} dan {akun} di URL hanya menemukan data di sekolah user yang login
+        // (SPEC F9). ID milik sekolah lain → 404, jadi keberadaannya tidak bocor.
+        Route::bind('kelas', fn (string $id) => Kelas::query()
+            ->where('school_id', request()->user()?->school_id)
+            ->findOrFail($id));
+
+        Route::bind('akun', fn (string $id) => User::query()
+            ->where('school_id', request()->user()?->school_id)
+            ->findOrFail($id));
     }
 }
