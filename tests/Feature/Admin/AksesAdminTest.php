@@ -128,6 +128,27 @@ class AksesAdminTest extends AdminTestCase
         $this->assertDatabaseHas('users', ['id' => $akunLain->id, 'nama' => $akunLain->nama]);
     }
 
+    /** SPEC F9 (v0.9): halaman 404 berbahasa Indonesia dengan tautan kembali. */
+    public function test_halaman_404_bahasa_indonesia(): void
+    {
+        $tautanKembali = 'href="'.url('/').'"';
+
+        // Data yang tidak ada / sudah dihapus, saat login.
+        $this->actingAs($this->admin)->get('/admin/akun/99999/edit')
+            ->assertNotFound()
+            ->assertSee('Halaman tidak ditemukan')
+            ->assertSee('Mungkin sudah dihapus')
+            ->assertSee($tautanKembali, false)
+            ->assertDontSee('Not Found');
+
+        // Alamat yang tidak ada, tanpa login.
+        auth()->logout();
+        $this->get('/alamat-tidak-ada')
+            ->assertNotFound()
+            ->assertSee('Halaman tidak ditemukan')
+            ->assertSee($tautanKembali, false);
+    }
+
     public function test_daftar_tidak_menampilkan_data_sekolah_lain(): void
     {
         $sekolahLain = \App\Models\School::factory()->create();

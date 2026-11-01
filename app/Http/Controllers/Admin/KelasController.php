@@ -94,8 +94,11 @@ class KelasController extends Controller
                 return true;
             });
         } catch (QueryException $e) {
-            // Cadangan: database tetap menolak karena masih ada data yang menunjuk
+            // Cadangan: database menolak karena masih ada siswa atau submit yang menunjuk
             // kelas ini (foreign key) → pesan biasa, bukan halaman error (v0.9).
+            // Jadwal TIDAK membuat database menolak: duty_schedules.class_id memakai
+            // cascadeOnDelete (ikut terhapus). Jadwal yang ditambahkan bersamaan hanya
+            // dilindungi oleh kunci baris kelas di atas.
             if ($e->getCode() !== '23000') {
                 throw $e;
             }
