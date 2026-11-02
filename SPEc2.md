@@ -3,7 +3,7 @@
 > Dokumen ini adalah sumber kebenaran tunggal. Semua kode harus sesuai dengan dokumen ini.
 > Kalau ada perubahan fitur, ubah dokumen ini DULU, baru kode.
 
-Status: DRAFT v0.10
+Status: DRAFT v0.11
 Bagian bertanda **[KEPUTUSAN TERBUKA]** belum final — putuskan sebelum fitur terkait dikerjakan.
 
 Perubahan v0.5 (keputusan pemilik proyek): piket hanya Senin–Jumat; tugas piket per siswa (menyapu / merapikan meja & kursi / mengepel) yang berputar tiap minggu; hari libur sekolah (F8).
@@ -17,6 +17,13 @@ Perubahan v0.8 (keputusan pemilik proyek): `tanggal_mulai_rotasi` terkunci setel
 Perubahan v0.9 (keputusan pemilik proyek): hapus akun oleh admin (menggantikan "tidak ada hapus akun"); maks 2 admin per sekolah; isian kembar yang lolos validasi bersamaan tampil sebagai pesan validasi; sesi dienkripsi (`SESSION_ENCRYPT=true`); kolom tugas (`duty_schedules.tugas_awal`, `submissions.tugas`) di MySQL disimpan sebagai teks + CHECK, bukan ENUM, supaya nilai kosong ditolak database (§6).
 
 Perubahan v0.10 (keputusan pemilik proyek): import akun CSV diputuskan (F9) — hanya siswa/PJ; satu baris salah → seluruh file ditolak; daftar password awal diunduh sekali sebagai CSV (pemisah titik koma + BOM UTF-8) dari halaman daftar akun; route `POST /admin/akun/import/password` (§7).
+
+Perubahan v0.11 (keputusan pemilik proyek, dari hasil tes manual Langkah 5):
+- password yang sudah dibuat tidak pernah ditampilkan lagi; import ulang dengan NIS yang sudah ada tetap ditolak (disengaja) (F9);
+- ganti password wajib tanpa password lama, berlaku untuk semua role, hanya di sesi yang login dengan mengetik password; sesi dari cookie "Ingat saya" tetap diminta password lama; isian password lama yang tidak diminta diabaikan; pesan "Password baru tidak boleh sama dengan password dari admin." (F1);
+- reset massal password satu kelas untuk siswa/PJ yang belum mengganti password, maks 50, route `POST /admin/kelas/{id}/reset-password`, daftar tertunda dipakai bersama dengan import, beserta teks pesannya (F9, §7, §8.2);
+- pesan "daftar belum diunduh" untuk import dan reset massal menjadi "Unduh dulu daftar password sebelumnya di halaman Akun." dengan tautan ke `/admin/akun` (mengganti teks v0.10) (F9);
+- langkah 5b lalu 5a sebelum Langkah 6 (§11).
 
 ---
 
@@ -61,9 +68,25 @@ Aturan:
   - Selama wajib ganti password, semua halaman dialihkan ke `/ganti-password` (kecuali logout).
   - Password baru: minimal 8 karakter, harus berbeda dari password lama, dan diketik dua kali (konfirmasi).
   - Batasi percobaan ganti password (maks 5 kali per menit per user).
+  - **Ganti wajib tanpa password lama** (diputuskan v0.11). Berlaku untuk **semua role**. Kalau `harus_ganti_password = true` (login pertama atau setelah reset admin) **dan** sesi ini login dengan mengetik password, form **tidak** meminta password lama, karena user baru saja mengetiknya saat login. Selain itu form tetap meminta password lama ("Password lama salah." kalau keliru):
+    - ganti password biasa (`harus_ganti_password = false`);
+    - ganti wajib di sesi yang dipulihkan dari cookie "Ingat saya" (lihat butir sesi di bawah).
+    - **Sesi dari cookie "Ingat saya" tetap diminta password lama** (diputuskan v0.11), karena komputer sekolah dipakai bergantian. Contoh kasus: user login pertama dengan "Ingat saya", lalu menutup browser tanpa mengganti password. Orang berikutnya yang membuka perangkat itu masuk lewat cookie, dan tanpa aturan ini ia bisa menetapkan password tanpa tahu password dari admin.
+      - Teknis: saat login dengan mengetik password berhasil (`POST /login`), server memberi **tanda di sesi**, mis. `login_dengan_password`. Sesi yang dipulihkan dari cookie "Ingat saya" tidak mendapat tanda ini. Hanya sesi bertanda yang boleh ganti wajib tanpa password lama. Sesi tanpa tanda (dari cookie, atau sesi yang sudah ada sebelum aturan ini dipasang) tetap diminta password lama. Tanda hilang bersama sesinya, saat logout atau sesi habis.
+      - Kenapa tidak memakai `Auth::viaRemember()` saja: nilainya `true` hanya pada **satu request**, yaitu request tempat cookie memulihkan login. Setelah itu Laravel menyimpan ID user ke sesi, dan request berikutnya, termasuk `POST /ganti-password`, dibaca dari sesi sehingga `viaRemember()` bernilai `false`. Jadi tanda harus disimpan di sesi. Tanda positif saat login dengan password dipilih karena bawaannya aman: sesi tanpa tanda tetap diminta password lama.
+      - Tetap ada risiko: sesi yang dibiarkan terbuka di perangkat bersama (tanpa cookie, sebelum sesi habis) masih bisa dipakai orang lain untuk menetapkan password.
+    - Tetap berlaku untuk ganti wajib:
+      - minimal 8 karakter + konfirmasi;
+      - maks 5 kali per menit per user;
+      - perangkat lain keluar dan perangkat yang dipakai tetap login (butir di bawah);
+      - password baru harus berbeda dari password saat ini. Ini dicek server terhadap hash password yang tersimpan, bukan terhadap isian form.
+    - Server menentukan perlu tidaknya password lama dari `harus_ganti_password` dan tanda sesi **saat form dikirim**, bukan dari isian form. Contoh: password sudah diganti di tab lain, lalu form tanpa password lama dikirim dari tab lama → ditolak "Password lama wajib diisi.", dan form tampil lagi dengan kolom password lama.
+    - **Isian password lama yang tetap dikirim** padahal tidak diminta (mis. form lama dari cache browser, atau dikirim manual) **diabaikan** (diputuskan v0.11).
+    - **Pesan "harus berbeda" saat ganti wajib** (diputuskan v0.11): "Password baru tidak boleh sama dengan password dari admin." User tidak melihat kolom "password lama", jadi kata itu bisa membingungkan. Ganti password biasa tetap "Password baru harus berbeda dari password lama."
 - Setiap kali password berubah (diganti user sendiri atau direset admin), semua sesi dan cookie "Ingat saya" user itu di perangkat lain ikut keluar. Kalau user mengganti sendiri, perangkat yang sedang dipakai tetap login.
   - Harus tetap berlaku walaupun penyimpanan sesi bukan database (mis. `SESSION_DRIVER=file` di hosting): pakai middleware bawaan Laravel `AuthenticateSession` (sesi yang dibuat dengan password lama otomatis keluar).
 - Setiap kolom password (login; ganti password: lama, baru, konfirmasi) punya tombol sendiri untuk menampilkan/menyembunyikan isinya. Default tersembunyi. Label untuk pembaca layar berubah sesuai kondisi: "Tampilkan password" / "Sembunyikan password".
+  - (v0.11) Saat ganti wajib tanpa password lama, kolom password lama tidak ada, jadi tombolnya juga tidak ada. Kolom baru dan konfirmasi tetap punya tombol masing-masing.
 - Batasi percobaan login gagal (maks 5 kali per menit per NIS/email + IP).
 
 ### F2. Jadwal Piket & Tugas
@@ -183,6 +206,7 @@ Keputusan F8 (yang sudah diputuskan ditandai "diputuskan"):
   - **Password awal & hasil reset:** dibuat sistem secara acak, **8 karakter, huruf kecil + angka, tanpa karakter yang mirip (`0`, `o`, `1`, `l`, `i`)**. Ditampilkan **sekali** ke admin setelah simpan/reset, lalu tidak bisa dilihat lagi. User wajib ganti password saat login berikutnya (F1).
     - Minimal 1 huruf dan 1 angka (v0.8). Dibuat dengan pembangkit acak yang aman (`random_int`).
     - Ditampilkan lewat pesan sesi sekali pakai (flash) di halaman berikutnya (v0.8); setelah halaman itu dibuka, password hilang dari sesi.
+    - **Tidak pernah ditampilkan lagi** (diputuskan v0.11): tidak ada di tabel daftar akun, form ubah akun, atau tempat lain. Password disimpan sebagai hash (§9), jadi memang tidak bisa dilihat siapa pun, termasuk admin. Satu-satunya cara mendapat password baru adalah **reset** (per akun, atau reset massal satu kelas, di bawah).
   - Reset password mengeluarkan user dari semua perangkat (F1).
   - Admin **tidak bisa mereset password akunnya sendiri** (tombol tidak ada & ditolak server); admin memakai `/ganti-password`. Admin boleh mereset password admin lain.
 - **Isian kembar** (nama kelas, NIS, email, no. absen) yang lolos validasi karena dua penyimpanan bersamaan lalu ditolak database (UNIQUE) ditampilkan sebagai pesan validasi biasa di kolom yang bersangkutan, mis. "NIS sudah dipakai." — bukan halaman error (v0.9).
@@ -204,6 +228,7 @@ Keputusan F8 (yang sudah diputuskan ditandai "diputuskan"):
     Siti Aminah,12346,XI RPL 1,2,pj_kebersihan
     ```
   - **Aturan tiap baris** sama dengan form tambah akun: nama wajib (maks 100), NIS wajib (huruf/angka, maks 30) & unik global, kelas harus ada di sekolah ini, no. absen 1–255 & unik per kelas, maks 2 PJ per kelas (PJ yang sudah ada + PJ di file). NIS kembar atau no. absen kembar (kelas sama) **di dalam file itu sendiri** juga salah.
+  - **Import hanya membuat akun baru** (diputuskan v0.11), tidak memperbarui atau mereset akun yang sudah ada. Import ulang file yang NIS-nya sudah ada (mis. file yang sama diupload lagi) tetap **ditolak seluruhnya** dengan pesan per baris "Baris {n}: NIS sudah dipakai.". Ini perilaku yang disengaja. Untuk memperbaiki data akun yang sudah ada → ubah akun; untuk password baru → reset password per akun, atau reset massal satu kelas (di bawah).
   - **Ada satu saja baris salah → seluruh file ditolak**, tidak ada akun yang dibuat. Admin melihat daftar kesalahan per baris, mis. "Baris 5: NIS sudah dipakai.", memperbaiki file, lalu upload ulang. Semua akun dari satu file disimpan dalam satu transaksi database (tersimpan semua atau tidak sama sekali).
     - Isian kembar dari penyimpanan bersamaan yang lolos pengecekan lalu ditolak database (UNIQUE) → file ditolak dengan pesan biasa "Ada NIS atau no. absen di file ini yang baru saja dipakai akun lain. Upload ulang file untuk melihat barisnya." (bukan halaman error, sama seperti aturan isian kembar di bawah).
     - Penyimpanan bersamaan lain, dicek ulang di dalam transaksi dengan baris kelas dikunci: kelas baru saja dihapus → "Ada kelas di file ini yang baru saja dihapus. Upload ulang file untuk melihat barisnya."; PJ kelas sudah penuh → "Kelas {nama} sudah punya 2 PJ kebersihan. Upload ulang file untuk melihat barisnya."
@@ -213,8 +238,37 @@ Keputusan F8 (yang sudah diputuskan ditandai "diputuskan"):
   - **Daftar password awal diunduh sekali:**
     - Setelah import berhasil, admin kembali ke daftar akun dengan pesan "{X} akun dibuat." dan kotak "Unduh daftar password" (tombol, `POST /admin/akun/import/password`). Isi file CSV: `nama, kelas, no_absen, nis, password`, urut kelas lalu no. absen; pemisah **titik koma** (`;`) dan **BOM UTF-8** di awal file, supaya langsung terbuka rapi per kolom di Excel berbahasa Indonesia.
     - Daftar password disimpan **hanya di sesi admin** (sesi dienkripsi, §6), tidak pernah ditulis ke file di server. Setelah diunduh, daftar dihapus dari sesi; kalau tombol dikirim lagi → "Daftar password sudah diunduh atau sudah tidak tersedia. Reset password akun yang belum tercatat."
-    - Kalau tidak diunduh (sesi habis, logout), daftar hilang. Admin memakai **reset password** per akun.
-    - Selama daftar belum diunduh, import baru ditolak: "Unduh dulu daftar password dari import sebelumnya." (supaya daftar lama tidak tertimpa).
+    - Kalau tidak diunduh (sesi habis, logout), daftar hilang. Admin memakai **reset password** per akun atau **reset massal satu kelas** (v0.11, di bawah).
+    - Selama daftar belum diunduh, import baru ditolak (supaya daftar lama tidak tertimpa): "Unduh dulu daftar password sebelumnya di halaman Akun.", dengan tautan ke `/admin/akun` (v0.11). Teks ini mengganti teks v0.10 "Unduh dulu daftar password dari import sebelumnya.". Sejak v0.11 daftar ini dipakai bersama dengan reset massal (di bawah).
+- **Reset massal password satu kelas** (diputuskan v0.11, kecuali teks pesan). Untuk siswa yang belum pernah login atau belum mengganti password, padahal password awalnya hilang (mis. daftar import tidak sempat diunduh, atau kertasnya hilang). Admin mereset sekaligus semua akun `siswa` dan `pj_kebersihan` di **satu kelas** yang masih `harus_ganti_password = true`, lalu mengunduh daftar password barunya sekali.
+  - **Cakupan: per kelas** (diputuskan v0.11). Tidak ada reset massal satu sekolah.
+  - **Yang ikut: `siswa` + `pj_kebersihan`** (diputuskan v0.11), dengan `class_id` = kelas itu dan `harus_ganti_password = true`. PJ juga login dengan NIS dan bisa kehilangan kertas yang sama. Guru/admin tidak punya kelas, jadi tidak pernah ikut.
+  - Mengikuti aturan yang sudah ada:
+    - password baru dibuat dengan aturan **password awal** di atas;
+    - reset mengeluarkan akun dari semua perangkat (F1);
+    - `harus_ganti_password` tetap true;
+    - akun yang sudah mengganti password sendiri (`harus_ganti_password = false`) tidak ikut direset.
+  - **Route:** `POST /admin/kelas/{id}/reset-password` (§7). Tombolnya ada di form ubah kelas. Kelas milik sekolah lain atau yang sudah dihapus → 404, sama seperti route kelas lain. Setelah reset berhasil, admin dialihkan ke `/admin/akun?kelas={id}`, tempat kotak "Unduh daftar password".
+  - **Batas: maks 50 akun per reset** (diputuskan v0.11), sama dengan import. Kalau akun yang memenuhi syarat lebih dari 50, seluruh reset ditolak dan tidak ada akun yang berubah. Akun yang direset per akun tetap terhitung, karena masih `harus_ganti_password = true`, jadi kelas itu baru bisa memakai reset massal setelah sebagian siswanya mengganti password.
+    - "Reset 50 pertama, lalu ulangi" **tidak bisa dipakai**. Akun yang sudah direset tetap `harus_ganti_password = true`, jadi akan direset lagi pada putaran berikutnya.
+  - **Daftar hasil reset dipakai bersama dengan daftar import** (diputuskan v0.11). Mekanismenya sama dengan daftar import (v0.10):
+    - satu daftar tertunda per sesi admin, disimpan hanya di sesi (dienkripsi), tidak pernah ditulis ke file di server;
+    - selama daftar belum diunduh, import **dan** reset massal sama-sama ditolak;
+    - tombol "Unduh daftar password" yang sama, dengan route yang sudah ada `POST /admin/akun/import/password` (nama route tidak diubah, supaya kontrak v0.10 tetap);
+    - dihapus dari sesi setelah diunduh; unduh kedua kali → pesan v0.10 "Daftar password sudah diunduh atau sudah tidak tersedia. Reset password akun yang belum tercatat.";
+    - file CSV pemisah `;` + BOM UTF-8, kolom `nama, kelas, no_absen, nis, password`, urut no. absen;
+    - request reset massal, import, dan unduh di sesi yang sama dijalankan bergantian (kunci sesi, seperti route import).
+  - **Teknis:** akun yang memenuhi syarat dicek ulang di dalam satu transaksi dengan baris akun dikunci. Jadi akun yang mengganti password atau dihapus bersamaan tidak ikut direset, dan password yang baru dipilih siswa tidak tertimpa. Password di-hash sebelum transaksi, supaya baris tidak terkunci lama.
+  - **Konfirmasi wajib menyebut** (diputuskan v0.11) bahwa **password yang sudah dibagikan tetapi belum dipakai login ikut tidak berlaku** (hasil import atau reset per akun). Teks lengkapnya ada di butir teks pesan di bawah.
+  - **Teks pesan** (diputuskan v0.11):
+    - konfirmasi: "Reset password {n} akun di kelas {nama} yang belum pernah mengganti password? Password yang sudah dibagikan tetapi belum dipakai login ikut tidak berlaku, dan akun-akun itu keluar dari semua perangkat. Tindakan ini tidak bisa dibatalkan."
+      - {n} = jumlah akun yang memenuhi syarat saat halaman ubah kelas dibuka.
+    - sukses: "Password {n} akun di kelas {nama} direset. Unduh daftar password sekarang — daftar hanya bisa diunduh sekali." + kotak "Unduh daftar password".
+      - {n} = jumlah akun yang **benar-benar direset**, yaitu hasil cek ulang di dalam transaksi. Bukan jumlah di halaman konfirmasi: angkanya bisa berbeda kalau ada siswa yang mengganti password atau akun yang dihapus sebelum tombol ditekan. Jumlah ini juga sama dengan jumlah baris di file unduhan.
+    - kelas tanpa akun yang memenuhi syarat: "Tidak ada akun di kelas {nama} yang belum mengganti password. Untuk akun tertentu, pakai reset password per akun." Tidak ada yang diubah. Teks ini benar juga untuk kelas yang tidak punya siswa. Teks yang sama dipakai kalau, saat dicek ulang di transaksi, sudah tidak ada akun yang memenuhi syarat.
+    - lebih dari 50 akun: "Kelas {nama} punya {n} akun yang belum mengganti password, maks 50 per reset. Pakai reset password per akun." {n} = jumlah saat dicek ulang di transaksi.
+    - daftar belum diunduh: "Unduh dulu daftar password sebelumnya di halaman Akun.", dengan "halaman Akun" sebagai **tautan ke `/admin/akun`**. Berlaku untuk import **dan** reset massal, karena daftarnya bersama. Teks ini **mengganti** teks v0.10 "Unduh dulu daftar password dari import sebelumnya."
+    - unduh kedua kali: tetap teks v0.10 "Daftar password sudah diunduh atau sudah tidak tersedia. Reset password akun yang belum tercatat."
 
 ## 4. Di luar MVP (jangan dikerjakan dulu)
 - Notifikasi pengingat piket
@@ -298,7 +352,7 @@ Aplikasi berbasis halaman (Laravel + Blade), bukan API terpisah. Semua route kec
 | GET | / | publik | alihkan ke `/login`, atau ke halaman awal role (F1) kalau sudah login |
 | GET/POST | /login | publik | satu halaman login untuk semua role |
 | POST | /logout | semua | |
-| GET/POST | /ganti-password | semua | wajib saat login pertama |
+| GET/POST | /ganti-password | semua | wajib saat login pertama; tanpa password lama saat ganti wajib di sesi yang login dengan password (F1, v0.11) |
 | GET | /beranda | siswa, pj | status piket hari ini (+ tugas) + tombol submit |
 | GET/POST | /piket/submit | siswa, pj | form submit (foto, catatan, alasan terlambat bila perlu) |
 | GET | /piket/riwayat | siswa, pj | riwayat submit sendiri |
@@ -311,6 +365,7 @@ Aplikasi berbasis halaman (Laravel + Blade), bukan API terpisah. Semua route kec
 | GET | /admin/kelas/{id}/edit | admin | form ubah kelas (v0.8) |
 | PUT | /admin/kelas/{id} | admin | ubah kelas |
 | DELETE | /admin/kelas/{id} | admin | hapus kelas (hanya kalau kosong) |
+| POST | /admin/kelas/{id}/reset-password | admin | reset massal password siswa/PJ kelas itu yang belum mengganti password, maks 50 (F9, v0.11). Lalu dialihkan ke `/admin/akun?kelas={id}` untuk mengunduh daftarnya. POST (dengan CSRF) + kunci sesi seperti route import |
 | GET/POST | /admin/akun | admin | daftar akun (filter kelas & role) / tambah akun (F9) |
 | GET | /admin/akun/baru | admin | form tambah akun |
 | GET | /admin/akun/{id}/edit | admin | form ubah akun |
@@ -318,7 +373,7 @@ Aplikasi berbasis halaman (Laravel + Blade), bukan API terpisah. Semua route kec
 | POST | /admin/akun/{id}/reset-password | admin | reset password; password baru ditampilkan sekali |
 | DELETE | /admin/akun/{id} | admin | hapus akun (v0.9; hanya kalau aturan F9 terpenuhi) |
 | POST | /admin/akun/import | admin | import akun siswa/PJ dari CSV (F9, v0.10) |
-| POST | /admin/akun/import/password | admin | unduh daftar password awal hasil import, sekali saja (F9, v0.10). POST (dengan CSRF), bukan GET, karena menghapus daftar dari sesi |
+| POST | /admin/akun/import/password | admin | unduh daftar password yang tertunda, sekali saja: hasil import (F9, v0.10) atau reset massal (v0.11, daftar bersama; nama route tetap). POST (dengan CSRF), bukan GET, karena menghapus daftar dari sesi |
 | GET/POST | /admin/pengaturan | admin | jam buka/tutup |
 | (usulan) GET/POST | /admin/hari-libur | admin | kelola hari libur (F8) — lihat [KEPUTUSAN TERBUKA] di bawah |
 
@@ -333,7 +388,7 @@ Pesan error ke user dalam bahasa Indonesia, mis. "Kamu tidak terjadwal piket har
 | Layar | Role | Isi utama |
 |---|---|---|
 | Login | semua | NIS atau email, password, checkbox "Ingat saya" (default tidak dicentang) |
-| Ganti password | semua | password lama, baru, konfirmasi |
+| Ganti password | semua | password lama, baru, konfirmasi; saat ganti wajib di sesi yang login dengan password: tanpa kolom password lama (F1, §8.2, v0.11) |
 | Beranda | siswa, pj | "Hari ini kamu piket — tugas: X" / tidak piket / libur / belum punya jadwal / jadwal belum berlaku, jam tepat waktu, tombol Submit, status submit hari ini |
 | Form submit | siswa, pj | tugas hari ini (teks, tidak bisa diubah), ambil foto, catatan, field alasan terlambat (muncul hanya jika sudah lewat jam) |
 | Riwayat | siswa, pj | daftar submit + tugas + status + alasan tolak |
@@ -341,8 +396,8 @@ Pesan error ke user dalam bahasa Indonesia, mis. "Kamu tidak terjadwal piket har
 | Rekap mingguan | pj, guru, admin | pilih minggu (Senin–Jumat) + tabel per siswa + keterangan tanggal libur minggu itu + ekspor CSV; kolom tugas → [KEPUTUSAN TERBUKA] F6 |
 | Kelola jadwal | pj, guru, admin | per siswa: dropdown hari + dropdown tugas awal; ringkasan isi per hari × tugas |
 | Admin | admin | tabel kelas (nama, wali, PJ, jumlah siswa) + menu kelas/akun/pengaturan/hari libur; menu yang belum dibuat tampil dengan tanda "segera" dan tidak bisa diklik |
-| Kelola kelas | admin | daftar kelas + form tambah (nama, wali kelas, tanggal mulai rotasi) / ubah (nama, wali kelas, tanggal mulai rotasi; tanggal harus Senin) + tombol hapus (dengan konfirmasi) |
-| Kelola akun | admin | daftar akun + filter kelas & role; form tambah/ubah (isian mengikuti role); tombol reset password (tidak ada untuk akun sendiri); password baru ditampilkan sekali; konfirmasi saat pindah kelas; tombol hapus (dengan konfirmasi) atau teks alasan tidak bisa dihapus; form import CSV (+ contoh format) dan kotak "Unduh daftar password" setelah import |
+| Kelola kelas | admin | daftar kelas + form tambah (nama, wali kelas, tanggal mulai rotasi) / ubah (nama, wali kelas, tanggal mulai rotasi; tanggal harus Senin) + tombol hapus (dengan konfirmasi); kotak "Reset password kelas ini" (reset massal) di form ubah kelas (F9, §8.2, v0.11) |
+| Kelola akun | admin | daftar akun + filter kelas & role; form tambah/ubah (isian mengikuti role); tombol reset password (tidak ada untuk akun sendiri); password baru ditampilkan sekali; konfirmasi saat pindah kelas; tombol hapus (dengan konfirmasi) atau teks alasan tidak bisa dihapus; form import CSV (+ contoh format) dan kotak "Unduh daftar password" setelah import atau reset massal; password yang sudah dibuat tidak pernah tampil lagi di tabel maupun form ubah (diputuskan v0.11) |
 | Hari libur | admin | form tambah (tanggal, keterangan) + daftar hari libur + tombol hapus |
 
 Desain: mobile-first, bahasa Indonesia, tombol besar. Halaman admin boleh lebih padat (dipakai di laptop).
@@ -385,6 +440,37 @@ Halaman dirender server (Blade), jadi tidak ada state "loading" terpisah; cukup 
 - Error validasi: tanggal wajib; keterangan wajib → "Keterangan wajib diisi."; tanggal sudah terdaftar → "Tanggal ini sudah terdaftar sebagai hari libur."; aturan tanggal lain sesuai [KEPUTUSAN TERBUKA] F8.
 - Sukses: "Hari libur ditambahkan." / "Hari libur dihapus."
 
+### 8.2 Detail layar v0.11
+
+Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset massal ada di F9.
+
+**Ganti password (semua role, dipakai siswa di HP)**. Urutan:
+1. Judul "Ganti password".
+2. Kotak info. Saat ganti wajib: "Kamu wajib mengganti password dulu sebelum bisa lanjut." (teks yang sudah ada). Saat ganti biasa: "Password baru minimal 8 karakter dan harus berbeda dari password lama."
+3. Kolom password lama. Tampil saat ganti biasa, dan saat ganti wajib di sesi yang **tidak** login dengan mengetik password (dipulihkan dari cookie "Ingat saya", F1). **Tidak tampil** saat ganti wajib di sesi yang login dengan password.
+4. Password baru (minimal 8 karakter), lalu Ulangi password baru. Setiap kolom punya tombol tampilkan/sembunyikan.
+5. Tombol besar "Simpan password".
+- Kosong: tidak berlaku, karena form selalu tampil.
+- Loading: tombol nonaktif + "Menyimpan…" (§8.1).
+- Error validasi: pesan di bawah kolom yang salah, mis.:
+  - "Password lama salah.";
+  - "Password lama wajib diisi." (form dikirim dari tab lama, F1);
+  - saat ganti wajib: "Password baru tidak boleh sama dengan password dari admin." (F1);
+  - konfirmasi tidak cocok.
+  Kolom password dikosongkan lagi.
+- Terlalu sering (lebih dari 5 kali per menit): ditolak. Teks halamannya belum diatur SPEC, dan v0.11 tidak mengubahnya.
+- Sukses: dialihkan ke halaman awal role dengan "Password berhasil diganti." (teks yang sudah ada).
+
+**Kotak reset massal password (admin)**, di form ubah kelas (`/admin/kelas/{id}/edit`). Urutan:
+1. Judul "Reset password kelas ini".
+2. Penjelasan: "Untuk siswa/PJ yang belum pernah mengganti password, mis. daftar password hilang. Akun yang sudah mengganti password tidak ikut."
+3. Jumlah: "{n} akun belum mengganti password."
+4. Tombol "Reset password {n} akun", dengan konfirmasi. Konfirmasi wajib menyebut bahwa password yang sudah dibagikan tetapi belum dipakai login ikut tidak berlaku (F9).
+- Kosong (n = 0): tombol tidak tampil; tampil teks "kelas tanpa akun yang memenuhi syarat" (F9).
+- Loading: bisa ± 20 detik untuk 50 akun. Tombol nonaktif + "Mereset password… jangan tutup halaman ini."
+- Error: daftar sebelumnya belum diunduh, atau lebih dari 50 akun (F9). Tidak ada akun yang berubah.
+- Sukses: dialihkan ke `/admin/akun?kelas={id}` dengan pesan sukses + kotak "Unduh daftar password" (sama seperti setelah import).
+
 ## 9. Keamanan & Privasi (wajib)
 - Data siswa adalah data anak di bawah umur → patuhi UU PDP. Foto hanya bisa dilihat siswa ybs, verifikator kelasnya, dan admin.
 - Foto disimpan di `storage/app/private`, BUKAN folder `public`. Ditampilkan lewat route yang mengecek hak akses.
@@ -424,6 +510,30 @@ Halaman dirender server (Blade), jadi tidak ada state "loading" terpisah; cukup 
    Selesai kalau: role lain mendapat 403 di semua `/admin/*`; admin tidak bisa melihat/mengubah data sekolah lain; password acak sesuai aturan F9 dan tampil sekali; reset mengeluarkan user dari semua perangkat; admin tidak bisa mereset akunnya sendiri; PJ ke-3 di satu kelas ditolak; pindah kelas menghapus jadwal kelas lama; `tanggal_mulai_rotasi` bukan Senin ditolak; role `guru`/`admin` tidak bisa diubah dan siswa/PJ tidak bisa dijadikan guru/admin; nama kelas kembar di satu sekolah ditolak; `tanggal_mulai_rotasi` kelas yang sudah punya submit tidak bisa diubah; password acak minimal 1 huruf + 1 angka; hapus akun sesuai F9 (siswa dengan submit, guru wali kelas, guru yang pernah memverifikasi ditolak; admin ke-3 ditolak; admin tidak bisa menghapus diri sendiri atau admin terakhir); isian kembar dari penyimpanan bersamaan tampil sebagai pesan validasi.
 5. Halaman admin: import akun CSV (F9, diputuskan v0.10).
    Selesai kalau: file contoh (siswa + PJ, pemisah koma maupun titik koma, dengan BOM) membuat semua akun dengan password acak sesuai aturan F9 dan `harus_ganti_password`; satu baris salah (NIS sudah dipakai, NIS kembar di file, kelas tidak ada / milik sekolah lain, no. absen kembar, PJ ke-3, role guru/admin) → tidak ada akun yang dibuat dan pesan menyebut nomor barisnya; baris judul salah, file bukan UTF-8, file kosong, dan > 50 baris ditolak; daftar password bisa diunduh tepat sekali, dengan pemisah titik koma dan BOM UTF-8 di awal; import baru ditolak selama daftar belum diunduh; role lain mendapat 403.
+
+   **Langkah tambahan v0.11, dikerjakan sebelum Langkah 6, urutannya 5b lalu 5a** (diputuskan v0.11). Nomor langkah lain tidak diubah, karena dirujuk di dokumen ini dan di komentar kode. Satu langkah per sesi.
+   - **5b. Ganti password wajib tanpa password lama (F1).** Dikerjakan lebih dulu: perubahannya kecil dan langsung terasa saat siswa login pertama.
+     Selesai kalau:
+     - login dengan mengetik password + `harus_ganti_password = true` → form tanpa kolom password lama; simpan berhasil dengan password baru + konfirmasi; `harus_ganti_password` jadi false; perangkat lain keluar; perangkat ini tetap login. Berlaku untuk semua role, termasuk guru/admin;
+     - sesi yang dipulihkan dari cookie "Ingat saya" + `harus_ganti_password = true` → kolom password lama tampil dan wajib benar;
+     - isian password lama yang tetap dikirim saat tidak diminta → diabaikan (password salah pun tetap berhasil);
+     - saat ganti wajib, password baru sama dengan password saat ini → "Password baru tidak boleh sama dengan password dari admin.";
+     - `harus_ganti_password = false` → password lama kosong atau salah ditolak, dan pesan "harus berbeda" tetap "Password baru harus berbeda dari password lama.";
+     - form tanpa password lama yang dikirim dari tab lama setelah password diganti → "Password lama wajib diisi.";
+     - percobaan ke-6 dalam semenit ditolak;
+     - tombol tampilkan/sembunyikan hanya ada di kolom yang tampil.
+   - **5a. Reset massal password satu kelas (F9).**
+     Selesai kalau:
+     - kelas berisi akun yang belum dan yang sudah mengganti password → hanya siswa/PJ yang belum yang direset, dan password pilihan siswa tetap berlaku;
+     - password baru sesuai aturan password awal F9; `harus_ganti_password` tetap true; password lama akun yang direset tidak bisa dipakai login; sesi dan cookie "Ingat saya" akun itu keluar;
+     - pesan sukses menyebut jumlah akun yang benar-benar direset (sama dengan jumlah baris file unduhan), bukan jumlah di konfirmasi;
+     - daftar bisa diunduh tepat sekali lewat `POST /admin/akun/import/password` (CSV `;` + BOM, kolom `nama, kelas, no_absen, nis, password`, urut no. absen), dan unduh kedua menampilkan pesan v0.10;
+     - selama daftar (dari import maupun reset) belum diunduh, import dan reset massal sama-sama ditolak dengan "Unduh dulu daftar password sebelumnya di halaman Akun." + tautan ke `/admin/akun`;
+     - lebih dari 50 akun yang memenuhi syarat → seluruh reset ditolak, tidak ada yang berubah;
+     - kelas tanpa akun yang memenuhi syarat, termasuk kelas tanpa siswa → "Tidak ada akun di kelas {nama} yang belum mengganti password. …", tidak ada yang berubah;
+     - konfirmasi memakai teks F9, termasuk "Tindakan ini tidak bisa dibatalkan.";
+     - kelas sekolah lain atau yang sudah dihapus → 404; role lain mendapat 403.
+     - Juga: tes import Langkah 5 yang memeriksa teks lama "Unduh dulu daftar password dari import sebelumnya." disesuaikan ke teks baru.
 6. Halaman admin: kelola hari libur (F8). Butuh keputusan: route (§7) + butir F8 yang masih terbuka.
    Selesai kalau: admin bisa tambah & hapus libur; role lain mendapat 403; daftar kosong menampilkan "Belum ada hari libur."; keterangan kosong ditolak ("Keterangan wajib diisi.").
 7. Halaman admin: pengaturan jam buka/tutup (`/admin/pengaturan`, F4) — harus selesai sebelum F3 + F4.
