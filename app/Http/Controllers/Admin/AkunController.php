@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Actions\GantiPassword;
 use App\Actions\HapusAkun;
+use App\Actions\ImportAkun;
 use App\Enums\Role;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ImportAkunRequest;
 use App\Http\Requests\Admin\SimpanAkunRequest;
 use App\Models\Kelas;
 use App\Models\School;
@@ -25,6 +27,13 @@ use Illuminate\View\View;
  */
 class AkunController extends Controller
 {
+    /** Kunci sesi daftar password awal hasil import, sampai diunduh (SPEC F9, v0.10). */
+    public const SESI_PASSWORD_IMPORT = 'password_import';
+
+    public const PESAN_IMPORT_BELUM_DIUNDUH = 'Unduh dulu daftar password dari import sebelumnya.';
+
+    public const PESAN_SUDAH_DIUNDUH = 'Daftar password sudah diunduh atau sudah tidak tersedia. Reset password akun yang belum tercatat.';
+
     public function index(Request $request): View
     {
         $sekolah = $request->user()->school;
@@ -44,7 +53,10 @@ class AkunController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        return view('admin.akun.index', compact('daftarKelas', 'daftarAkun', 'filterKelas', 'filterRole'));
+        // Jumlah akun di daftar password import yang belum diunduh (0 = tidak ada).
+        $jumlahPasswordImport = count($request->session()->get(self::SESI_PASSWORD_IMPORT, []));
+
+        return view('admin.akun.index', compact('daftarKelas', 'daftarAkun', 'filterKelas', 'filterRole', 'jumlahPasswordImport'));
     }
 
     public function create(Request $request): View
@@ -147,6 +159,83 @@ class AkunController extends Controller
             ->route('admin.akun.edit', $akun)
             ->with('status', "Password {$akun->nama} direset.")
             ->with('password_sekali', $this->infoPassword($akun, $password));
+    }
+
+    /**
+     * Import akun siswa/PJ dari CSV (SPEC F9, v0.10). Satu baris salah → seluruh file
+     * ditolak (pesan di kolom "file"). Kalau berhasil, daftar password awal disimpan
+     * di sesi (terenkripsi) sampai diunduh lewat unduhPasswordImport().
+     */
+    public function import(ImportAkunRequest $request, ImportAkun $importAkun): RedirectResponse
+    {
+        // Daftar lama jangan sampai tertimpa sebelum diunduh.
+        if ($request->session()->has(self::SESI_PASSWORD_IMPORT)) {
+            throw ValidationException::withMessages(['file' => self::PESAN_IMPORT_BELUM_DIUNDUH]);
+        }
+
+        // Batas PHP biasanya 30 detik; hashing 50 password butuh ± 20 detik (lebih lama di
+        // server lambat). Kalau hosting melarang set_time_limit, batas bawaannya tetap berlaku.
+        set_time_limit(120);
+
+        $isi = $request->file('file')->get();
+        if (! is_string($isi)) {
+            throw ValidationException::withMessages(['file' => 'File gagal diupload. Coba lagi.']);
+        }
+
+        $daftar = $importAkun->jalankan($isi, $request->user());
+
+        $request->session()->put(self::SESI_PASSWORD_IMPORT, $daftar);
+
+        return redirect()->route('admin.akun.index')->with('status', count($daftar).' akun dibuat.');
+    }
+
+    /**
+     * Unduh daftar password awal hasil import, sekali saja (SPEC F9, v0.10): daftar
+     * diambil lalu langsung dihapus dari sesi. POST (dengan CSRF), bukan GET, supaya
+     * tidak bisa "terpakai" tanpa sengaja oleh situs lain atau prefetch browser.
+     */
+    public function unduhPasswordImport(Request $request): Response|RedirectResponse
+    {
+        $daftar = $request->session()->pull(self::SESI_PASSWORD_IMPORT);
+
+        if (! is_array($daftar) || $daftar === []) {
+            return redirect()->route('admin.akun.index')->withErrors(['unduh' => self::PESAN_SUDAH_DIUNDUH]);
+        }
+
+        $nama = 'password-akun-'.now()->format('Y-m-d-His').'.csv';
+
+        return response($this->csvPassword($daftar), 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$nama}\"",
+            'Cache-Control' => 'no-store, private',
+        ]);
+    }
+
+    /**
+     * @param  list<array{nama: string, kelas: string, no_absen: int, nis: string, password: string}>  $daftar
+     */
+    private function csvPassword(array $daftar): string
+    {
+        // Pemisah titik koma + BOM UTF-8: Excel berbahasa Indonesia langsung membaginya
+        // per kolom dan membaca huruf non-ASCII dengan benar (SPEC F9).
+        $pemisah = ';';
+        $aliran = fopen('php://temp', 'r+');
+        fwrite($aliran, "\xEF\xBB\xBF");
+
+        // Nilai yang diawali = + - @ (atau tab / enter) dibaca Excel sebagai rumus; diberi ' di depan.
+        // (Langkah 11: pindahkan ke tempat bersama untuk ekspor rekap, lihat SPEC §11.)
+        $aman = fn ($nilai) => preg_match('/^[=+\-@\t\r]/', (string) $nilai) ? "'".$nilai : (string) $nilai;
+
+        fputcsv($aliran, ['nama', 'kelas', 'no_absen', 'nis', 'password'], $pemisah, '"', '');
+        foreach ($daftar as $baris) {
+            fputcsv($aliran, array_map($aman, [$baris['nama'], $baris['kelas'], $baris['no_absen'], $baris['nis'], $baris['password']]), $pemisah, '"', '');
+        }
+
+        rewind($aliran);
+        $isi = stream_get_contents($aliran);
+        fclose($aliran);
+
+        return $isi;
     }
 
     /**

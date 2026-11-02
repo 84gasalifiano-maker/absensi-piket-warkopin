@@ -21,6 +21,13 @@ use Illuminate\Validation\Validator;
  */
 class SimpanAkunRequest extends FormRequest
 {
+    /** Aturan dasar isian akun siswa/PJ, dipakai juga oleh import CSV (App\Actions\ImportAkun). */
+    public const ATURAN_NAMA = ['required', 'string', 'max:100'];
+
+    public const ATURAN_NIS = ['required', 'string', 'max:30', 'alpha_num:ascii'];
+
+    public const ATURAN_NO_ABSEN = ['required', 'integer', 'min:1', 'max:255'];
+
     public const PESAN_KONFIRMASI_PINDAH = 'Jadwal piket siswa ini di kelas lama akan dihapus. Centang "Ya, hapus jadwal lama" untuk melanjutkan.';
 
     public function authorize(): bool
@@ -123,16 +130,16 @@ class SimpanAkunRequest extends FormRequest
         $sekolahId = $this->user()->school_id;
 
         $rules = [
-            'nama' => ['required', 'string', 'max:100'],
+            'nama' => self::ATURAN_NAMA,
             'role' => [$this->roleTetap() ? 'nullable' : 'required', Rule::in($this->roleYangBoleh())],
         ];
 
         if ($this->akunSiswa()) {
             return $rules + [
-                'nis' => ['required', 'string', 'max:30', 'alpha_num:ascii', Rule::unique('users', 'nis')->ignore($akun?->id)],
+                'nis' => [...self::ATURAN_NIS, Rule::unique('users', 'nis')->ignore($akun?->id)],
                 'class_id' => ['bail', 'required', 'integer', Rule::exists('classes', 'id')->where('school_id', $sekolahId)],
                 'no_absen' => [
-                    'required', 'integer', 'min:1', 'max:255',
+                    ...self::ATURAN_NO_ABSEN,
                     Rule::unique('users', 'no_absen')->where('class_id', (int) $this->input('class_id'))->ignore($akun?->id),
                 ],
                 'konfirmasi_pindah_kelas' => $this->pindahKelasMenghapusJadwal() ? ['accepted'] : ['nullable'],

@@ -3,7 +3,7 @@
 > Dokumen ini adalah sumber kebenaran tunggal. Semua kode harus sesuai dengan dokumen ini.
 > Kalau ada perubahan fitur, ubah dokumen ini DULU, baru kode.
 
-Status: DRAFT v0.9
+Status: DRAFT v0.10
 Bagian bertanda **[KEPUTUSAN TERBUKA]** belum final — putuskan sebelum fitur terkait dikerjakan.
 
 Perubahan v0.5 (keputusan pemilik proyek): piket hanya Senin–Jumat; tugas piket per siswa (menyapu / merapikan meja & kursi / mengepel) yang berputar tiap minggu; hari libur sekolah (F8).
@@ -15,6 +15,8 @@ Perubahan v0.7 (keputusan pemilik proyek): nilai enum tugas final; `tanggal_mula
 Perubahan v0.8 (keputusan pemilik proyek): `tanggal_mulai_rotasi` terkunci setelah kelas punya submit; pesan & prioritas beranda (F3, §8.1); nama kelas unik per sekolah; konfirmasi pindah kelas hanya kalau ada jadwal; password acak minimal 1 huruf + 1 angka, ditampilkan sekali lewat flash; `school_id` tidak bisa diisi lewat mass assignment; route form ubah kelas (§7).
 
 Perubahan v0.9 (keputusan pemilik proyek): hapus akun oleh admin (menggantikan "tidak ada hapus akun"); maks 2 admin per sekolah; isian kembar yang lolos validasi bersamaan tampil sebagai pesan validasi; sesi dienkripsi (`SESSION_ENCRYPT=true`); kolom tugas (`duty_schedules.tugas_awal`, `submissions.tugas`) di MySQL disimpan sebagai teks + CHECK, bukan ENUM, supaya nilai kosong ditolak database (§6).
+
+Perubahan v0.10 (keputusan pemilik proyek): import akun CSV diputuskan (F9) — hanya siswa/PJ; satu baris salah → seluruh file ditolak; daftar password awal diunduh sekali sebagai CSV (pemisah titik koma + BOM UTF-8) dari halaman daftar akun; route `POST /admin/akun/import/password` (§7).
 
 ---
 
@@ -188,7 +190,31 @@ Keputusan F8 (yang sudah diputuskan ditandai "diputuskan"):
   - Sama halnya kalau guru yang dipilih sebagai wali kelas baru saja dihapus admin lain bersamaan: simpan kelas ditolak dengan pesan di kolom wali kelas "Wali kelas harus akun guru di sekolah ini." (v0.9).
   - **Pindah kelas** siswa/PJ: kalau siswa punya jadwal di kelas lama, tampilkan konfirmasi "Jadwal piket siswa ini di kelas lama akan dihapus." dengan centang "Ya, hapus jadwal lama" yang dicek server; tanpa centang, perubahan tidak disimpan. Kalau siswa belum punya jadwal, tidak perlu konfirmasi (v0.8). Kelas tujuan harus di sekolah yang sama dan tetap memenuhi maks 2 PJ & no. absen unik; setelah disimpan, jadwal di kelas lama dihapus (F2).
   - **Ubah role** (v0.7): hanya antara `siswa` ↔ `pj_kebersihan` (cara menunjuk/mengganti PJ, tetap maks 2 per kelas). Role `guru`/`admin` tidak bisa diubah, dan siswa/PJ tidak bisa diubah menjadi guru/admin.
-- **Import akun CSV:** dikerjakan di langkah tersendiri (§11). **[KEPUTUSAN TERBUKA]** format kolom, penanganan baris duplikat/salah (tolak semua vs lewati baris), dan cara menampilkan password awal banyak akun sekaligus — putuskan sebelum langkah itu.
+- **Import akun CSV** (diputuskan v0.10, Langkah 5 §11). Form upload ada di halaman daftar akun (`/admin/akun`).
+  - **Hanya `siswa`/`pj_kebersihan`.** Guru dan admin tetap ditambah lewat form.
+  - **Format file:** CSV UTF-8 (BOM dari Excel boleh), pemisah koma atau titik koma (dikenali dari baris judul), maks **1 MB** dan maks **50 baris akun** per file. Batas 50 karena setiap password di-hash satu per satu (± 0,4 detik per akun); file lebih besar dipecah, mis. satu file per kelas.
+  - **Baris pertama = baris judul** berisi kolom `nama`, `nis`, `kelas`, `no_absen`, dan boleh `role` (urutan bebas, huruf besar/kecil tidak dibedakan). Kolom lain atau kolom wajib yang hilang → file ditolak: "Baris judul harus berisi kolom: nama, nis, kelas, no_absen (kolom role boleh ada)."
+    - `kelas` = nama kelas di sekolah ini (huruf besar/kecil tidak dibedakan), mis. `XI RPL 1`.
+    - `role` = `siswa` atau `pj_kebersihan`; kosong (atau kolom tidak ada) = `siswa`.
+    - Baris yang seluruhnya kosong dilewati.
+    Contoh:
+    ```
+    nama,nis,kelas,no_absen,role
+    Budi Santoso,12345,XI RPL 1,1,
+    Siti Aminah,12346,XI RPL 1,2,pj_kebersihan
+    ```
+  - **Aturan tiap baris** sama dengan form tambah akun: nama wajib (maks 100), NIS wajib (huruf/angka, maks 30) & unik global, kelas harus ada di sekolah ini, no. absen 1–255 & unik per kelas, maks 2 PJ per kelas (PJ yang sudah ada + PJ di file). NIS kembar atau no. absen kembar (kelas sama) **di dalam file itu sendiri** juga salah.
+  - **Ada satu saja baris salah → seluruh file ditolak**, tidak ada akun yang dibuat. Admin melihat daftar kesalahan per baris, mis. "Baris 5: NIS sudah dipakai.", memperbaiki file, lalu upload ulang. Semua akun dari satu file disimpan dalam satu transaksi database (tersimpan semua atau tidak sama sekali).
+    - Isian kembar dari penyimpanan bersamaan yang lolos pengecekan lalu ditolak database (UNIQUE) → file ditolak dengan pesan biasa "Ada NIS atau no. absen di file ini yang baru saja dipakai akun lain. Upload ulang file untuk melihat barisnya." (bukan halaman error, sama seperti aturan isian kembar di bawah).
+    - Penyimpanan bersamaan lain, dicek ulang di dalam transaksi dengan baris kelas dikunci: kelas baru saja dihapus → "Ada kelas di file ini yang baru saja dihapus. Upload ulang file untuk melihat barisnya."; PJ kelas sudah penuh → "Kelas {nama} sudah punya 2 PJ kebersihan. Upload ulang file untuk melihat barisnya."
+    - Pesan format file: bukan UTF-8 → "File harus disimpan sebagai CSV UTF-8. Di Excel: Simpan Sebagai → "CSV UTF-8 (Comma delimited)"."; tanpa baris akun → "File tidak berisi baris akun."; > 50 baris → "File berisi {n} baris akun, maks 50 per file. Pecah menjadi beberapa file, mis. satu file per kelas."; baris dengan sel terisi melebihi baris judul → "Baris {n}: jumlah kolom lebih banyak dari baris judul." Sel kosong di ujung baris (termasuk baris judul, sering ditambahkan Excel) diabaikan.
+    - Request import dan unduh di sesi yang sama dijalankan bergantian (kunci sesi), supaya import kedua (mis. dari tab lain) tidak menimpa sesi dan menghapus daftar password import pertama.
+  - Password setiap akun dibuat dengan aturan **password awal** di atas; semua akun hasil import wajib ganti password saat login pertama (F1).
+  - **Daftar password awal diunduh sekali:**
+    - Setelah import berhasil, admin kembali ke daftar akun dengan pesan "{X} akun dibuat." dan kotak "Unduh daftar password" (tombol, `POST /admin/akun/import/password`). Isi file CSV: `nama, kelas, no_absen, nis, password`, urut kelas lalu no. absen; pemisah **titik koma** (`;`) dan **BOM UTF-8** di awal file, supaya langsung terbuka rapi per kolom di Excel berbahasa Indonesia.
+    - Daftar password disimpan **hanya di sesi admin** (sesi dienkripsi, §6), tidak pernah ditulis ke file di server. Setelah diunduh, daftar dihapus dari sesi; kalau tombol dikirim lagi → "Daftar password sudah diunduh atau sudah tidak tersedia. Reset password akun yang belum tercatat."
+    - Kalau tidak diunduh (sesi habis, logout), daftar hilang. Admin memakai **reset password** per akun.
+    - Selama daftar belum diunduh, import baru ditolak: "Unduh dulu daftar password dari import sebelumnya." (supaya daftar lama tidak tertimpa).
 
 ## 4. Di luar MVP (jangan dikerjakan dulu)
 - Notifikasi pengingat piket
@@ -291,7 +317,8 @@ Aplikasi berbasis halaman (Laravel + Blade), bukan API terpisah. Semua route kec
 | PUT | /admin/akun/{id} | admin | ubah akun (termasuk pindah kelas) |
 | POST | /admin/akun/{id}/reset-password | admin | reset password; password baru ditampilkan sekali |
 | DELETE | /admin/akun/{id} | admin | hapus akun (v0.9; hanya kalau aturan F9 terpenuhi) |
-| POST | /admin/akun/import | admin | import akun dari CSV (langkah tersendiri, §11) |
+| POST | /admin/akun/import | admin | import akun siswa/PJ dari CSV (F9, v0.10) |
+| POST | /admin/akun/import/password | admin | unduh daftar password awal hasil import, sekali saja (F9, v0.10). POST (dengan CSRF), bukan GET, karena menghapus daftar dari sesi |
 | GET/POST | /admin/pengaturan | admin | jam buka/tutup |
 | (usulan) GET/POST | /admin/hari-libur | admin | kelola hari libur (F8) — lihat [KEPUTUSAN TERBUKA] di bawah |
 
@@ -315,7 +342,7 @@ Pesan error ke user dalam bahasa Indonesia, mis. "Kamu tidak terjadwal piket har
 | Kelola jadwal | pj, guru, admin | per siswa: dropdown hari + dropdown tugas awal; ringkasan isi per hari × tugas |
 | Admin | admin | tabel kelas (nama, wali, PJ, jumlah siswa) + menu kelas/akun/pengaturan/hari libur; menu yang belum dibuat tampil dengan tanda "segera" dan tidak bisa diklik |
 | Kelola kelas | admin | daftar kelas + form tambah (nama, wali kelas, tanggal mulai rotasi) / ubah (nama, wali kelas, tanggal mulai rotasi; tanggal harus Senin) + tombol hapus (dengan konfirmasi) |
-| Kelola akun | admin | daftar akun + filter kelas & role; form tambah/ubah (isian mengikuti role); tombol reset password (tidak ada untuk akun sendiri); password baru ditampilkan sekali; konfirmasi saat pindah kelas; tombol hapus (dengan konfirmasi) atau teks alasan tidak bisa dihapus |
+| Kelola akun | admin | daftar akun + filter kelas & role; form tambah/ubah (isian mengikuti role); tombol reset password (tidak ada untuk akun sendiri); password baru ditampilkan sekali; konfirmasi saat pindah kelas; tombol hapus (dengan konfirmasi) atau teks alasan tidak bisa dihapus; form import CSV (+ contoh format) dan kotak "Unduh daftar password" setelah import |
 | Hari libur | admin | form tambah (tanggal, keterangan) + daftar hari libur + tombol hapus |
 
 Desain: mobile-first, bahasa Indonesia, tombol besar. Halaman admin boleh lebih padat (dipakai di laptop).
@@ -395,7 +422,8 @@ Halaman dirender server (Blade), jadi tidak ada state "loading" terpisah; cukup 
 4. Halaman admin (F9): dashboard + kelola kelas + kelola akun (tambah/ubah/reset password, pindah kelas) + middleware `AuthenticateSession` (F1).
    Termasuk: keluarkan `school_id` dari fillable model `Kelas` dan `User`; kelas dibuat lewat relasi sekolah admin (`$school->kelas()->create(...)`); migration baru UNIQUE(school_id, nama) di `classes`.
    Selesai kalau: role lain mendapat 403 di semua `/admin/*`; admin tidak bisa melihat/mengubah data sekolah lain; password acak sesuai aturan F9 dan tampil sekali; reset mengeluarkan user dari semua perangkat; admin tidak bisa mereset akunnya sendiri; PJ ke-3 di satu kelas ditolak; pindah kelas menghapus jadwal kelas lama; `tanggal_mulai_rotasi` bukan Senin ditolak; role `guru`/`admin` tidak bisa diubah dan siswa/PJ tidak bisa dijadikan guru/admin; nama kelas kembar di satu sekolah ditolak; `tanggal_mulai_rotasi` kelas yang sudah punya submit tidak bisa diubah; password acak minimal 1 huruf + 1 angka; hapus akun sesuai F9 (siswa dengan submit, guru wali kelas, guru yang pernah memverifikasi ditolak; admin ke-3 ditolak; admin tidak bisa menghapus diri sendiri atau admin terakhir); isian kembar dari penyimpanan bersamaan tampil sebagai pesan validasi.
-5. Halaman admin: import akun CSV (F9). Butuh keputusan dulu: [KEPUTUSAN TERBUKA] import CSV di F9.
+5. Halaman admin: import akun CSV (F9, diputuskan v0.10).
+   Selesai kalau: file contoh (siswa + PJ, pemisah koma maupun titik koma, dengan BOM) membuat semua akun dengan password acak sesuai aturan F9 dan `harus_ganti_password`; satu baris salah (NIS sudah dipakai, NIS kembar di file, kelas tidak ada / milik sekolah lain, no. absen kembar, PJ ke-3, role guru/admin) → tidak ada akun yang dibuat dan pesan menyebut nomor barisnya; baris judul salah, file bukan UTF-8, file kosong, dan > 50 baris ditolak; daftar password bisa diunduh tepat sekali, dengan pemisah titik koma dan BOM UTF-8 di awal; import baru ditolak selama daftar belum diunduh; role lain mendapat 403.
 6. Halaman admin: kelola hari libur (F8). Butuh keputusan: route (§7) + butir F8 yang masih terbuka.
    Selesai kalau: admin bisa tambah & hapus libur; role lain mendapat 403; daftar kosong menampilkan "Belum ada hari libur."; keterangan kosong ditolak ("Keterangan wajib diisi.").
 7. Halaman admin: pengaturan jam buka/tutup (`/admin/pengaturan`, F4) — harus selesai sebelum F3 + F4.
@@ -409,5 +437,6 @@ Halaman dirender server (Blade), jadi tidak ada state "loading" terpisah; cukup 
 10. F5 Verifikasi (kartu menampilkan tugas)
 11. F6 Rekap mingguan + CSV (Senin–Jumat, tanggal libur dan tanggal sebelum `tanggal_mulai_rotasi` dikecualikan).
     Selesai kalau: siswa terjadwal Rabu, Rabu libur, tanpa submit → terjadwal 0 dan tidak piket 0 untuk minggu itu; minggu berikutnya tugasnya tetap bergeser satu langkah; minggu sebelum `tanggal_mulai_rotasi` → terjadwal 0 dan tidak piket 0.
+    Catatan dari Langkah 5: pelindung rumus Excel (nilai yang diawali `=`, `+`, `-`, `@`, tab, atau enter diberi `'` di depan) sekarang ada di `AkunController::csvPassword`. Pindahkan ke tempat bersama (mis. `App\Support`) dan pakai juga untuk ekspor rekap, karena nama siswa dari import bisa diawali `=`. Jangan ditulis dua kali. Saat dipindah, tambahkan juga `\n` (baris baru): versi sekarang hanya menangkap tab dan `\r`, cukup untuk nama hasil import (sel di-trim), tapi belum untuk data lain seperti alasan tolak.
 12. F7 Penghapusan foto mingguan (scheduler) + peringatan mulai Jumat sore
 13. Uji coba dengan 1 kelas sungguhan selama 1 minggu (Senin–Jumat)

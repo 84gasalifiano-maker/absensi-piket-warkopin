@@ -55,6 +55,14 @@ Route::middleware('auth')->group(function () {
             Route::get('/akun', [AkunController::class, 'index'])->name('akun.index');
             Route::post('/akun', [AkunController::class, 'store'])->name('akun.store');
             Route::get('/akun/baru', [AkunController::class, 'create'])->name('akun.create');
+            // block(): request import/unduh di sesi yang sama berjalan bergantian, bukan
+            // bersamaan. Tanpa ini, import kedua (mis. dari tab lain) bisa menimpa sesi dan
+            // menghapus daftar password import pertama (SPEC F9). Kunci 150 detik > batas
+            // waktu import (set_time_limit 120 di AkunController::import).
+            Route::post('/akun/import', [AkunController::class, 'import'])->name('akun.import')
+                ->block(lockSeconds: 150, waitSeconds: 150);
+            Route::post('/akun/import/password', [AkunController::class, 'unduhPasswordImport'])->name('akun.import.password')
+                ->block(lockSeconds: 150, waitSeconds: 150);
             Route::get('/akun/{akun}/edit', [AkunController::class, 'edit'])->name('akun.edit');
             Route::put('/akun/{akun}', [AkunController::class, 'update'])->name('akun.update');
             Route::post('/akun/{akun}/reset-password', [AkunController::class, 'resetPassword'])->name('akun.reset-password');
