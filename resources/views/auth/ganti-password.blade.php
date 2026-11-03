@@ -12,7 +12,10 @@
     <form method="POST" action="{{ route('ganti-password') }}" class="space-y-4">
         @csrf
 
-        <x-field name="password_lama" label="Password lama" type="password" autocomplete="current-password" required />
+        {{-- Tidak tampil saat ganti wajib di sesi yang login dengan password (F1, §8.2, v0.11). --}}
+        @if ($perluPasswordLama)
+            <x-field name="password_lama" label="Password lama" type="password" autocomplete="current-password" required />
+        @endif
         <x-field name="password_baru" label="Password baru (minimal 8 karakter)" type="password" autocomplete="new-password" minlength="8" required />
         <x-field name="password_baru_confirmation" label="Ulangi password baru" type="password" autocomplete="new-password" minlength="8" required />
 

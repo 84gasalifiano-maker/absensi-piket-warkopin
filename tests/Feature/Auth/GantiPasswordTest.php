@@ -168,9 +168,11 @@ class GantiPasswordTest extends TestCase
                 ['password_lama' => 'password', 'password_baru' => 'pendek', 'password_baru_confirmation' => 'pendek'],
                 'password_baru', 'Password baru minimal berisi 8 karakter.',
             ],
-            'sama dengan password lama' => [
+            // User di tes ini wajib ganti → teks "dari admin" untuk semua ganti wajib (v0.11).
+            // Ganti biasa ("harus berbeda dari password lama") dites di GantiPasswordWajibTest.
+            'sama dengan password saat ini' => [
                 ['password_lama' => 'password', 'password_baru' => 'password', 'password_baru_confirmation' => 'password'],
-                'password_baru', 'Password baru harus berbeda dari password lama.',
+                'password_baru', 'Password baru tidak boleh sama dengan password dari admin.',
             ],
             'konfirmasi tidak cocok' => [
                 ['password_lama' => 'password', 'password_baru' => 'rahasia-baru', 'password_baru_confirmation' => 'rahasia-lain'],

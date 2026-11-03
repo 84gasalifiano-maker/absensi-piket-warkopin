@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Kelas;
 use App\Models\User;
+use App\Support\LoginDenganPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -32,8 +33,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)
                 ->by('ganti-password|'.$request->user()->id)
                 ->response(function (Request $request, array $headers) {
+                    // Pesan di bawah kolom password lama; kalau kolom itu tidak tampil
+                    // (ganti wajib tanpa password lama, v0.11), di bawah password baru.
+                    $kolom = LoginDenganPassword::bolehTanpaPasswordLama($request) ? 'password_baru' : 'password_lama';
+
                     return back()->withErrors([
-                        'password_lama' => 'Terlalu banyak percobaan ganti password. Coba lagi dalam '
+                        $kolom => 'Terlalu banyak percobaan ganti password. Coba lagi dalam '
                             .$headers['Retry-After'].' detik.',
                     ]);
                 });
