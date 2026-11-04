@@ -191,6 +191,7 @@ return [
         'konfirmasi_pindah_kelas' => 'Konfirmasi pindah kelas',
         'hari' => 'Hari',
         'tanggal' => 'Tanggal',
+        'keterangan' => 'Keterangan',
         'catatan' => 'Catatan',
         'alasan_terlambat' => 'Alasan keterlambatan',
         'alasan_tolak' => 'Alasan penolakan',

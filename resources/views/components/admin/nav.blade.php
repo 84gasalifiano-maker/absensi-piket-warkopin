@@ -4,6 +4,7 @@
         ['Dashboard', route('admin'), request()->routeIs('admin')],
         ['Kelas', route('admin.kelas.index'), request()->routeIs('admin.kelas.*')],
         ['Akun', route('admin.akun.index'), request()->routeIs('admin.akun.*')],
+        ['Hari libur', route('admin.hari-libur.index'), request()->routeIs('admin.hari-libur.*')],
     ];
 @endphp
 
@@ -17,7 +18,7 @@
            ])>{{ $teks }}</a>
     @endforeach
 
-    @foreach (['Pengaturan', 'Hari libur'] as $teks)
+    @foreach (['Pengaturan'] as $teks)
         <span class="cursor-not-allowed rounded-lg border border-dashed border-gray-300 px-4 py-2 text-gray-500">
             {{ $teks }} <span class="text-xs">(segera)</span>
         </span>

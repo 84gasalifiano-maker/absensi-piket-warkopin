@@ -11,7 +11,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 class AksesAdminTest extends AdminTestCase
 {
     /**
-     * Semua route admin. {k} = id kelas, {a} = id akun.
+     * Semua route admin. {k} = id kelas, {a} = id akun, {h} = id hari libur.
      *
      * @return list<array{string, string}>
      */
@@ -34,12 +34,15 @@ class AksesAdminTest extends AdminTestCase
             ['PUT', '/admin/akun/{a}'],
             ['POST', '/admin/akun/{a}/reset-password'],
             ['DELETE', '/admin/akun/{a}'],
+            ['GET', '/admin/hari-libur'],
+            ['POST', '/admin/hari-libur'],
+            ['DELETE', '/admin/hari-libur/{h}'],
         ];
     }
 
-    private function url(string $pola, int $kelasId, int $akunId): string
+    private function url(string $pola, int $kelasId, int $akunId, int $liburId = 99999): string
     {
-        return str_replace(['{k}', '{a}'], [$kelasId, $akunId], $pola);
+        return str_replace(['{k}', '{a}', '{h}'], [$kelasId, $akunId, $liburId], $pola);
     }
 
     public function test_daftar_route_di_tes_ini_lengkap(): void
@@ -47,7 +50,7 @@ class AksesAdminTest extends AdminTestCase
         $routeAdmin = collect(Route::getRoutes()->getRoutes())
             ->filter(fn ($route) => Str::startsWith($route->uri(), 'admin'))
             ->flatMap(fn ($route) => collect($route->methods())->reject(fn ($m) => $m === 'HEAD')
-                ->map(fn ($m) => $m.' /'.preg_replace(['/\{kelas\}/', '/\{akun\}/'], ['{k}', '{a}'], $route->uri())))
+                ->map(fn ($m) => $m.' /'.preg_replace(['/\{kelas\}/', '/\{akun\}/', '/\{hariLibur\}/'], ['{k}', '{a}', '{h}'], $route->uri())))
             ->sort()->values()->all();
 
         $diTes = collect($this->semuaRouteAdmin())->map(fn ($r) => $r[0].' '.$r[1])->sort()->values()->all();
@@ -68,10 +71,11 @@ class AksesAdminTest extends AdminTestCase
     {
         $user = $role === Role::Guru ? $this->guru() : $this->siswa($role);
         $akun = $this->siswa();
+        $libur = $this->sekolah->hariLibur()->create(['tanggal' => '2026-12-25', 'keterangan' => 'Natal']);
 
         foreach ($this->semuaRouteAdmin() as [$method, $pola]) {
             $this->actingAs($user)
-                ->call($method, $this->url($pola, $this->kelas->id, $akun->id), ['_token' => csrf_token()])
+                ->call($method, $this->url($pola, $this->kelas->id, $akun->id, $libur->id), ['_token' => csrf_token()])
                 ->assertForbidden();
         }
     }
@@ -84,12 +88,14 @@ class AksesAdminTest extends AdminTestCase
     public function test_role_lain_mendapat_403_walau_id_tidak_ada(Role $role): void
     {
         $user = $role === Role::Guru ? $this->guru() : $this->siswa($role);
-        $kelasLain = $this->kelasBaru('XI RPL 1', \App\Models\School::factory()->create());
+        $sekolahLain = \App\Models\School::factory()->create();
+        $kelasLain = $this->kelasBaru('XI RPL 1', $sekolahLain);
+        $liburLain = $sekolahLain->hariLibur()->create(['tanggal' => '2026-12-25', 'keterangan' => 'Natal']);
 
         foreach ($this->semuaRouteAdmin() as [$method, $pola]) {
-            foreach ([[99999, 99999], [$kelasLain->id, $this->admin->id + 1000]] as [$kelasId, $akunId]) {
+            foreach ([[99999, 99999, 99999], [$kelasLain->id, $this->admin->id + 1000, $liburLain->id]] as [$kelasId, $akunId, $liburId]) {
                 $this->actingAs($user)
-                    ->call($method, $this->url($pola, $kelasId, $akunId))
+                    ->call($method, $this->url($pola, $kelasId, $akunId, $liburId))
                     ->assertForbidden();
             }
         }
@@ -99,6 +105,9 @@ class AksesAdminTest extends AdminTestCase
     {
         $this->actingAs($this->admin)->get("/admin/kelas/{$this->kelas->id}abc/edit")->assertNotFound();
         $this->actingAs($this->admin)->get("/admin/akun/{$this->admin->id}abc/edit")->assertNotFound();
+        $libur = $this->sekolah->hariLibur()->create(['tanggal' => '2026-12-25', 'keterangan' => 'Natal']);
+        $this->actingAs($this->admin)->delete("/admin/hari-libur/{$libur->id}abc")->assertNotFound();
+        $this->assertModelExists($libur);
     }
 
     public function test_tamu_dialihkan_ke_login(): void
@@ -114,14 +123,15 @@ class AksesAdminTest extends AdminTestCase
         $sekolahLain = \App\Models\School::factory()->create();
         $kelasLain = $this->kelasBaru('XI RPL 1', $sekolahLain);
         $akunLain = $this->siswa(Role::Siswa, $kelasLain);
+        $liburLain = $sekolahLain->hariLibur()->create(['tanggal' => '2026-12-25', 'keterangan' => 'Natal']);
 
         foreach ($this->semuaRouteAdmin() as [$method, $pola]) {
-            if (! Str::contains($pola, ['{k}', '{a}'])) {
+            if (! Str::contains($pola, ['{k}', '{a}', '{h}'])) {
                 continue;
             }
 
             $this->actingAs($this->admin)
-                ->call($method, $this->url($pola, $kelasLain->id, $akunLain->id), [
+                ->call($method, $this->url($pola, $kelasLain->id, $akunLain->id, $liburLain->id), [
                     'nama' => 'Diubah', 'tanggal_mulai_rotasi' => '2026-11-02', 'role' => 'siswa',
                 ])
                 ->assertNotFound();
@@ -129,6 +139,7 @@ class AksesAdminTest extends AdminTestCase
 
         $this->assertDatabaseHas('classes', ['id' => $kelasLain->id, 'nama' => 'XI RPL 1']);
         $this->assertDatabaseHas('users', ['id' => $akunLain->id, 'nama' => $akunLain->nama]);
+        $this->assertModelExists($liburLain);
     }
 
     /** SPEC F9 (v0.9): halaman 404 berbahasa Indonesia dengan tautan kembali. */

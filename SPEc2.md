@@ -3,7 +3,7 @@
 > Dokumen ini adalah sumber kebenaran tunggal. Semua kode harus sesuai dengan dokumen ini.
 > Kalau ada perubahan fitur, ubah dokumen ini DULU, baru kode.
 
-Status: DRAFT v0.11
+Status: DRAFT v0.12
 Bagian bertanda **[KEPUTUSAN TERBUKA]** belum final — putuskan sebelum fitur terkait dikerjakan.
 
 Perubahan v0.5 (keputusan pemilik proyek): piket hanya Senin–Jumat; tugas piket per siswa (menyapu / merapikan meja & kursi / mengepel) yang berputar tiap minggu; hari libur sekolah (F8).
@@ -25,6 +25,8 @@ Perubahan v0.11 (keputusan pemilik proyek, dari hasil tes manual Langkah 5):
 - pesan "daftar belum diunduh" untuk import dan reset massal menjadi "Unduh dulu daftar password sebelumnya di halaman Akun." dengan tautan ke `/admin/akun` (mengganti teks v0.10) (F9);
 - dari review Langkah 5a: pesan khusus saat reset massal bertabrakan dengan reset admin lain, dan {n} pada penolakan yang sudah terjadi di cek awal (F9, §8.2, §11 5a);
 - langkah 5b lalu 5a sebelum Langkah 6 (§11).
+
+Perubahan v0.12 (keputusan pemilik proyek, untuk Langkah 6): aturan hari libur diputuskan (F8): hanya Senin–Jumat, tahun 2000–2100, tanggal lampau boleh ditambah/dihapus, tidak ada edit, tanggal yang sudah punya submit ditolak; route `GET/POST /admin/hari-libur` + `DELETE /admin/hari-libur/{id}` (§7); teks pesan, konfirmasi hapus, dan urutan daftar (§8.1); menu "Hari libur" di dashboard admin aktif; kriteria selesai Langkah 6 (§11); catatan teknis Langkah 9: submit mengecek hari libur di dalam transaksi dengan `sharedLock()` pada baris sekolah, tambah hari libur dengan `lockForUpdate()` (§11).
 
 ---
 
@@ -183,12 +185,14 @@ Keputusan F2 (yang sudah diputuskan ditandai "diputuskan"):
 
 Keputusan F8 (yang sudah diputuskan ditandai "diputuskan"):
 - **Diputuskan (v0.6):** `UNIQUE(school_id, tanggal)` — satu tanggal satu baris per sekolah. Pesan error: "Tanggal ini sudah terdaftar sebagai hari libur."
-- **[KEPUTUSAN TERBUKA] Tanggal yang boleh diisi:**
-  - Hari: (a) hanya Senin–Jumat; (b) tanggal apa saja.
-  - Tanggal lampau: (a) boleh tambah/hapus kapan saja — rekap minggu lalu ikut berubah karena dihitung ulang; (b) hanya hari ini dan ke depan.
-- **Keterangan wajib diisi** (v0.7) — dicek di validasi form; kolom database tetap boleh kosong. → "Keterangan wajib diisi."
-- **[KEPUTUSAN TERBUKA] Edit hari libur:** (a) tidak ada edit, cukup hapus lalu tambah; (b) ada edit.
-- **[KEPUTUSAN TERBUKA] Tanggal dijadikan libur padahal sudah ada submit di tanggal itu:** (a) submit tetap tampil dan tetap dihitung di rekap; (b) submit tetap tersimpan tetapi tidak dihitung di rekap; (c) admin ditolak menambah libur di tanggal yang sudah ada submit.
+- **Hari: hanya Senin–Jumat** (diputuskan v0.12). Sabtu/Minggu memang tidak ada piket, jadi tanggal Sabtu/Minggu ditolak: "Hari libur hanya untuk Senin–Jumat. Sabtu dan Minggu memang tidak ada piket."
+- **Tahun 2000–2100** (diputuskan v0.12). Di luar itu dianggap tanggal tidak valid: "Tanggal harus berupa tanggal yang valid."
+- **Tanggal lampau: boleh tambah/hapus kapan saja** (diputuskan v0.12). Rekap minggu lalu ikut berubah karena dihitung ulang (F6).
+- **Keterangan wajib diisi** (v0.7) — dicek di validasi form; kolom database tetap boleh kosong. → "Keterangan wajib diisi." Maks 255 karakter (panjang kolom).
+- **Tidak ada edit** (diputuskan v0.12). Untuk mengubah, hapus lalu tambah lagi.
+- **Tanggal yang sudah punya submit tidak bisa dijadikan libur** (diputuskan v0.12): "Tanggal ini sudah punya submit piket, jadi tidak bisa dijadikan hari libur." "Submit" = baris `submissions` apa pun statusnya, dari kelas mana pun di sekolah itu, dengan `tanggal` = tanggal yang diisi. Dicek di server saat menyimpan.
+  - Ini hanya mengatur **penambahan** libur. Submit di tanggal yang **sudah** libur tetap [KEPUTUSAN TERBUKA] F3 "Submit di tanggal libur".
+- **Hapus** tidak punya syarat tambahan (tanggal lampau pun boleh, lihat di atas).
 
 ### F9. Kelola Kelas & Akun (admin)
 - Semua data yang dilihat & diubah admin dibatasi ke sekolahnya sendiri (`school_id` admin).
@@ -378,9 +382,8 @@ Aplikasi berbasis halaman (Laravel + Blade), bukan API terpisah. Semua route kec
 | POST | /admin/akun/import | admin | import akun siswa/PJ dari CSV (F9, v0.10) |
 | POST | /admin/akun/import/password | admin | unduh daftar password yang tertunda, sekali saja: hasil import (F9, v0.10) atau reset massal (v0.11, daftar bersama; nama route tetap). POST (dengan CSRF), bukan GET, karena menghapus daftar dari sesi |
 | GET/POST | /admin/pengaturan | admin | jam buka/tutup |
-| (usulan) GET/POST | /admin/hari-libur | admin | kelola hari libur (F8) — lihat [KEPUTUSAN TERBUKA] di bawah |
-
-- **[KEPUTUSAN TERBUKA] Route halaman hari libur.** Usulan: `GET /admin/hari-libur` (daftar + form), `POST /admin/hari-libur` (tambah), `DELETE /admin/hari-libur/{id}` (hapus). Kalau ada edit (F8): tambah `PUT /admin/hari-libur/{id}`. Pilihan lain: ikut pola tabel ini (`GET/POST` saja, hapus lewat POST). Nama dan method wajib final sebelum dikerjakan (aturan kontrak route).
+| GET/POST | /admin/hari-libur | admin | daftar hari libur + form tambah / tambah hari libur (F8, diputuskan v0.12) |
+| DELETE | /admin/hari-libur/{id} | admin | hapus hari libur (F8, v0.12); id milik sekolah lain → 404. Tidak ada edit (F8) |
 
 Proteksi: middleware `auth` + middleware role di setiap grup route. Semua route `/admin/*` hanya untuk `admin`.
 
@@ -439,8 +442,16 @@ Halaman dirender server (Blade), jadi tidak ada state "loading" terpisah; cukup 
 1. Judul "Hari Libur".
 2. Form tambah: tanggal (date picker), keterangan, tombol "Tambah".
 3. Daftar hari libur urut tanggal (yang akan datang di atas): hari + tanggal, keterangan, tombol "Hapus" (dengan konfirmasi).
+   - Urutan persisnya (v0.12): hari ini dan tanggal yang akan datang di atas, mulai dari yang terdekat; di bawahnya tanggal lampau, mulai dari yang terbaru.
+   - Format tanggal: "Rabu, 11 Nov 2026".
+   - Konfirmasi hapus (v0.12): "Hapus hari libur Rabu, 11 Nov 2026 ({keterangan})?"
 - Kosong: "Belum ada hari libur."
-- Error validasi: tanggal wajib; keterangan wajib → "Keterangan wajib diisi."; tanggal sudah terdaftar → "Tanggal ini sudah terdaftar sebagai hari libur."; aturan tanggal lain sesuai [KEPUTUSAN TERBUKA] F8.
+- Error validasi (teks diputuskan v0.12), isian tidak hilang:
+  - tanggal kosong → "Tanggal wajib diisi."; tanggal tidak valid → "Tanggal harus berupa tanggal yang valid." Tidak valid = bukan format `YYYY-MM-DD`, tanggal yang tidak ada di kalender (mis. 30 Feb), atau tahun di luar 2000–2100 (v0.12);
+  - keterangan kosong → "Keterangan wajib diisi."; lebih dari 255 karakter → "Keterangan tidak boleh lebih dari 255 karakter.";
+  - tanggal sudah terdaftar → "Tanggal ini sudah terdaftar sebagai hari libur.";
+  - Sabtu/Minggu → "Hari libur hanya untuk Senin–Jumat. Sabtu dan Minggu memang tidak ada piket.";
+  - tanggal yang sudah punya submit → "Tanggal ini sudah punya submit piket, jadi tidak bisa dijadikan hari libur."
 - Sukses: "Hari libur ditambahkan." / "Hari libur dihapus."
 
 ### 8.2 Detail layar v0.11
@@ -538,8 +549,9 @@ Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset 
      - konfirmasi memakai teks F9, termasuk "Tindakan ini tidak bisa dibatalkan.";
      - kelas sekolah lain atau yang sudah dihapus → 404; role lain mendapat 403.
      - Juga: tes import Langkah 5 yang memeriksa teks lama "Unduh dulu daftar password dari import sebelumnya." disesuaikan ke teks baru.
-6. Halaman admin: kelola hari libur (F8). Butuh keputusan: route (§7) + butir F8 yang masih terbuka.
-   Selesai kalau: admin bisa tambah & hapus libur; role lain mendapat 403; daftar kosong menampilkan "Belum ada hari libur."; keterangan kosong ditolak ("Keterangan wajib diisi.").
+6. Halaman admin: kelola hari libur (F8). Keputusan route (§7) dan F8: v0.12.
+   Selesai kalau: admin bisa tambah & hapus libur; role lain mendapat 403; daftar kosong menampilkan "Belum ada hari libur."; keterangan kosong ditolak ("Keterangan wajib diisi.");
+   dan (v0.12): admin hanya melihat dan menghapus hari libur sekolahnya sendiri (id sekolah lain → 404); tanggal yang sudah terdaftar ditolak, termasuk dari penyimpanan bersamaan; Sabtu/Minggu ditolak; tahun di luar 2000–2100 ditolak sebagai tanggal tidak valid; tanggal lampau bisa ditambah dan dihapus; tanggal yang sudah punya submit (status apa pun, kelas mana pun di sekolah itu) ditolak, sedangkan submit sekolah lain di tanggal itu tidak berpengaruh; urutan daftar dan teks sesuai §8.1; tambah dan hapus hanya lewat form dengan CSRF; menu "Hari libur" di dashboard admin aktif.
 7. Halaman admin: pengaturan jam buka/tutup (`/admin/pengaturan`, F4) — harus selesai sebelum F3 + F4.
 8. F2 Jadwal piket + tugas awal + rotasi (fungsi rotasi sudah ada sejak Langkah 3).
    Ditinjau ulang di langkah ini (catatan review Langkah 4): kalau dua admin memindahkan siswa yang sama pada saat bersamaan, jadwal di kelas perantara bisa tertinggal (`AkunController::update` membaca kelas lama dari data sebelum baris akun dikunci).
@@ -547,6 +559,7 @@ Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset 
 9. F3 + F4 Submit dengan batas waktu & keterlambatan (+ `submissions.tugas` diisi server, aturan tanggal libur dan tanggal sebelum `tanggal_mulai_rotasi`).
    Selesai kalau: `submissions.tugas` sesuai rotasi walau form dikirim dengan nilai tugas lain; perilaku di tanggal libur sesuai keputusan F3; submit sebelum `tanggal_mulai_rotasi` ditolak.
    Teknis: akun bisa dihapus admin (F9) bersamaan dengan submit/verifikasi. Hapus akun mengunci baris akun itu, jadi database menolak submit/verifikasi yang menunjuk akun yang sudah terhapus (foreign key) — tangkap dan tampilkan sebagai pesan, bukan halaman error (berlaku juga untuk Langkah 10).
+   Teknis (v0.12): penambahan hari libur (Langkah 6) dan submit bisa terjadi bersamaan. Tambah hari libur menolak tanggal yang sudah punya submit (F8), jadi submit **wajib mengecek hari libur di dalam transaksi**, setelah mengunci baris `schools` sekolah itu sebelum bacaan biasa pertama: submit memakai kunci baca bersama (`sharedLock()`), tambah hari libur memakai `lockForUpdate()`. Kunci baca bersama tidak saling menghalangi, jadi submit tidak saling antre di jam sibuk; tambah hari libur menunggu submit yang sedang berjalan selesai, dan sebaliknya. Tanpa kunci di baris yang sama, keduanya bisa lolos pengecekan dan tanggal libur tetap punya submit. Perilaku submit di tanggal libur tetap mengikuti keputusan F3 (masih terbuka sampai langkah ini).
    Teknis: tombol submit yang dinonaktifkan dari server (mis. sebelum jam buka, F4) wajib diberi atribut `data-tetap-nonaktif`, supaya tidak diaktifkan lagi oleh skrip pencegah klik ganda (`resources/js/app.js`).
 10. F5 Verifikasi (kartu menampilkan tugas)
 11. F6 Rekap mingguan + CSV (Senin–Jumat, tanggal libur dan tanggal sebelum `tanggal_mulai_rotasi` dikecualikan).

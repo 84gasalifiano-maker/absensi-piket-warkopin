@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AkunController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\HariLiburController;
 use App\Http\Controllers\Admin\KelasController;
 use App\Http\Controllers\Auth\GantiPasswordController;
 use App\Http\Controllers\Auth\LoginController;
@@ -71,6 +72,11 @@ Route::middleware('auth')->group(function () {
             Route::put('/akun/{akun}', [AkunController::class, 'update'])->name('akun.update');
             Route::post('/akun/{akun}/reset-password', [AkunController::class, 'resetPassword'])->name('akun.reset-password');
             Route::delete('/akun/{akun}', [AkunController::class, 'destroy'])->name('akun.destroy');
+
+            // Hari libur (SPEC F8, v0.12). Tidak ada edit: hapus lalu tambah lagi.
+            Route::get('/hari-libur', [HariLiburController::class, 'index'])->name('hari-libur.index');
+            Route::post('/hari-libur', [HariLiburController::class, 'store'])->name('hari-libur.store');
+            Route::delete('/hari-libur/{hariLibur}', [HariLiburController::class, 'destroy'])->name('hari-libur.destroy');
         });
     });
 });
