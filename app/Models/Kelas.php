@@ -91,6 +91,20 @@ class Kelas extends Model
             ->orderBy('no_absen');
     }
 
+    /**
+     * Akun yang ikut reset massal (SPEC F9, v0.11): siswa & PJ kelas ini yang
+     * belum pernah mengganti password. Guru/admin tidak punya kelas, jadi tidak ikut.
+     *
+     * @return HasMany<User, $this>
+     */
+    public function akunBelumGantiPassword(): HasMany
+    {
+        return $this->hasMany(User::class, 'class_id')
+            ->where('school_id', $this->school_id) // pengaman tambahan: akun sekolah kelas ini saja
+            ->whereIn('role', [Role::Siswa, Role::PjKebersihan])
+            ->where('harus_ganti_password', true);
+    }
+
     /** @return HasMany<User, $this> */
     public function pjKebersihan(): HasMany
     {

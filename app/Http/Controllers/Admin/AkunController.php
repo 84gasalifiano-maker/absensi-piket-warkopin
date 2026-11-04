@@ -27,10 +27,14 @@ use Illuminate\View\View;
  */
 class AkunController extends Controller
 {
-    /** Kunci sesi daftar password awal hasil import, sampai diunduh (SPEC F9, v0.10). */
+    /**
+     * Kunci sesi daftar password yang tertunda sampai diunduh (SPEC F9): hasil import
+     * (v0.10) atau reset massal satu kelas (v0.11). Satu daftar bersama per sesi admin.
+     */
     public const SESI_PASSWORD_IMPORT = 'password_import';
 
-    public const PESAN_IMPORT_BELUM_DIUNDUH = 'Unduh dulu daftar password dari import sebelumnya.';
+    /** Untuk import dan reset massal (v0.11); "halaman Akun" ditampilkan sebagai tautan ke /admin/akun. */
+    public const PESAN_DAFTAR_BELUM_DIUNDUH = 'Unduh dulu daftar password sebelumnya di halaman Akun.';
 
     public const PESAN_SUDAH_DIUNDUH = 'Daftar password sudah diunduh atau sudah tidak tersedia. Reset password akun yang belum tercatat.';
 
@@ -170,7 +174,7 @@ class AkunController extends Controller
     {
         // Daftar lama jangan sampai tertimpa sebelum diunduh.
         if ($request->session()->has(self::SESI_PASSWORD_IMPORT)) {
-            throw ValidationException::withMessages(['file' => self::PESAN_IMPORT_BELUM_DIUNDUH]);
+            throw ValidationException::withMessages(['file' => self::PESAN_DAFTAR_BELUM_DIUNDUH]);
         }
 
         // Batas PHP biasanya 30 detik; hashing 50 password butuh ± 20 detik (lebih lama di

@@ -52,7 +52,7 @@ Siti Aminah,12346,XI RPL 1,2,pj_kebersihan</pre>
                     <p class="font-semibold">Tidak ada akun yang dibuat. Perbaiki file lalu upload ulang:</p>
                     <ul class="mt-1 list-disc pl-5">
                         @foreach ($errors->get('file') as $pesan)
-                            <li>{{ $pesan }}</li>
+                            <li><x-admin.pesan-error :pesan="$pesan" /></li>
                         @endforeach
                     </ul>
                 </div>

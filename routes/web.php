@@ -51,6 +51,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/kelas/{kelas}/edit', [KelasController::class, 'edit'])->name('kelas.edit');
             Route::put('/kelas/{kelas}', [KelasController::class, 'update'])->name('kelas.update');
             Route::delete('/kelas/{kelas}', [KelasController::class, 'destroy'])->name('kelas.destroy');
+            // Reset massal (SPEC F9, v0.11): daftar password-nya dipakai bersama dengan import,
+            // jadi memakai kunci sesi yang sama dengan route import/unduh di bawah.
+            Route::post('/kelas/{kelas}/reset-password', [KelasController::class, 'resetPassword'])->name('kelas.reset-password')
+                ->block(lockSeconds: 150, waitSeconds: 150);
 
             Route::get('/akun', [AkunController::class, 'index'])->name('akun.index');
             Route::post('/akun', [AkunController::class, 'store'])->name('akun.store');

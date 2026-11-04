@@ -394,6 +394,26 @@ class GantiPasswordWajibTest extends TestCase
         $this->assertTrue(Hash::check('rahasia-baru', $siswa->fresh()->password));
     }
 
+    /**
+     * Hash bcrypt yang dikirim sebagai "password baru" diperlakukan sebagai teks biasa,
+     * bukan disimpan apa adanya. Kalau disimpan apa adanya, user bisa memakai password
+     * 1 karakter (hash dari "a") dan melewati aturan minimal 8 karakter (temuan review 5a).
+     */
+    public function test_hash_yang_dikirim_sebagai_password_baru_tidak_disimpan_apa_adanya(): void
+    {
+        $guru = $this->buatUser(Role::Guru);
+        $this->loginDenganPassword($guru);
+        $hashDariA = Hash::make('a');
+
+        $this->post('/ganti-password', ['password_lama' => 'password', 'password_baru' => $hashDariA, 'password_baru_confirmation' => $hashDariA])
+            ->assertRedirect('/verifikasi');
+
+        $guru->refresh();
+        $this->assertNotSame($hashDariA, $guru->password);
+        $this->assertFalse(Hash::check('a', $guru->password), 'Password "a" (1 karakter) tidak boleh berlaku.');
+        $this->assertTrue(Hash::check($hashDariA, $guru->password), 'Password-nya adalah teks 60 karakter yang diketik.');
+    }
+
     public function test_harus_ganti_password_tidak_bisa_disetel_lewat_form(): void
     {
         $guru = $this->buatUser(Role::Guru);

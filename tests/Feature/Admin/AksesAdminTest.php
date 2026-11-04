@@ -24,6 +24,7 @@ class AksesAdminTest extends AdminTestCase
             ['GET', '/admin/kelas/{k}/edit'],
             ['PUT', '/admin/kelas/{k}'],
             ['DELETE', '/admin/kelas/{k}'],
+            ['POST', '/admin/kelas/{k}/reset-password'],
             ['GET', '/admin/akun'],
             ['POST', '/admin/akun'],
             ['GET', '/admin/akun/baru'],

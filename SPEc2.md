@@ -23,6 +23,7 @@ Perubahan v0.11 (keputusan pemilik proyek, dari hasil tes manual Langkah 5):
 - ganti password wajib tanpa password lama, berlaku untuk semua role, hanya di sesi yang login dengan mengetik password; sesi dari cookie "Ingat saya" tetap diminta password lama; isian password lama yang tidak diminta diabaikan; pesan "Password baru tidak boleh sama dengan password dari admin." (F1);
 - reset massal password satu kelas untuk siswa/PJ yang belum mengganti password, maks 50, route `POST /admin/kelas/{id}/reset-password`, daftar tertunda dipakai bersama dengan import, beserta teks pesannya (F9, §7, §8.2);
 - pesan "daftar belum diunduh" untuk import dan reset massal menjadi "Unduh dulu daftar password sebelumnya di halaman Akun." dengan tautan ke `/admin/akun` (mengganti teks v0.10) (F9);
+- dari review Langkah 5a: pesan khusus saat reset massal bertabrakan dengan reset admin lain, dan {n} pada penolakan yang sudah terjadi di cek awal (F9, §8.2, §11 5a);
 - langkah 5b lalu 5a sebelum Langkah 6 (§11).
 
 ---
@@ -240,7 +241,7 @@ Keputusan F8 (yang sudah diputuskan ditandai "diputuskan"):
     - Daftar password disimpan **hanya di sesi admin** (sesi dienkripsi, §6), tidak pernah ditulis ke file di server. Setelah diunduh, daftar dihapus dari sesi; kalau tombol dikirim lagi → "Daftar password sudah diunduh atau sudah tidak tersedia. Reset password akun yang belum tercatat."
     - Kalau tidak diunduh (sesi habis, logout), daftar hilang. Admin memakai **reset password** per akun atau **reset massal satu kelas** (v0.11, di bawah).
     - Selama daftar belum diunduh, import baru ditolak (supaya daftar lama tidak tertimpa): "Unduh dulu daftar password sebelumnya di halaman Akun.", dengan tautan ke `/admin/akun` (v0.11). Teks ini mengganti teks v0.10 "Unduh dulu daftar password dari import sebelumnya.". Sejak v0.11 daftar ini dipakai bersama dengan reset massal (di bawah).
-- **Reset massal password satu kelas** (diputuskan v0.11, kecuali teks pesan). Untuk siswa yang belum pernah login atau belum mengganti password, padahal password awalnya hilang (mis. daftar import tidak sempat diunduh, atau kertasnya hilang). Admin mereset sekaligus semua akun `siswa` dan `pj_kebersihan` di **satu kelas** yang masih `harus_ganti_password = true`, lalu mengunduh daftar password barunya sekali.
+- **Reset massal password satu kelas** (diputuskan v0.11). Untuk siswa yang belum pernah login atau belum mengganti password, padahal password awalnya hilang (mis. daftar import tidak sempat diunduh, atau kertasnya hilang). Admin mereset sekaligus semua akun `siswa` dan `pj_kebersihan` di **satu kelas** yang masih `harus_ganti_password = true`, lalu mengunduh daftar password barunya sekali.
   - **Cakupan: per kelas** (diputuskan v0.11). Tidak ada reset massal satu sekolah.
   - **Yang ikut: `siswa` + `pj_kebersihan`** (diputuskan v0.11), dengan `class_id` = kelas itu dan `harus_ganti_password = true`. PJ juga login dengan NIS dan bisa kehilangan kertas yang sama. Guru/admin tidak punya kelas, jadi tidak pernah ikut.
   - Mengikuti aturan yang sudah ada:
@@ -266,7 +267,9 @@ Keputusan F8 (yang sudah diputuskan ditandai "diputuskan"):
     - sukses: "Password {n} akun di kelas {nama} direset. Unduh daftar password sekarang — daftar hanya bisa diunduh sekali." + kotak "Unduh daftar password".
       - {n} = jumlah akun yang **benar-benar direset**, yaitu hasil cek ulang di dalam transaksi. Bukan jumlah di halaman konfirmasi: angkanya bisa berbeda kalau ada siswa yang mengganti password atau akun yang dihapus sebelum tombol ditekan. Jumlah ini juga sama dengan jumlah baris di file unduhan.
     - kelas tanpa akun yang memenuhi syarat: "Tidak ada akun di kelas {nama} yang belum mengganti password. Untuk akun tertentu, pakai reset password per akun." Tidak ada yang diubah. Teks ini benar juga untuk kelas yang tidak punya siswa. Teks yang sama dipakai kalau, saat dicek ulang di transaksi, sudah tidak ada akun yang memenuhi syarat.
+    - direset bersamaan (diputuskan v0.11, dari review Langkah 5a): "Password akun di kelas ini baru saja direset admin lain. Muat ulang halaman." Dipakai **hanya** kalau saat dicek ulang di transaksi masih ada akun yang belum mengganti password, tetapi tidak satu pun bisa direset karena semuanya berubah sejak cek awal. Penyebab yang biasa: dua admin menekan tombol reset kelas yang sama hampir bersamaan, dan admin kedua mendapat pesan ini, bukan "Tidak ada akun …" (yang menyesatkan, karena kotak reset masih menampilkan N akun). Tidak ada yang diubah oleh request kedua. Password dari admin pertama tetap berlaku.
     - lebih dari 50 akun: "Kelas {nama} punya {n} akun yang belum mengganti password, maks 50 per reset. Pakai reset password per akun." {n} = jumlah saat dicek ulang di transaksi.
+      - **Kompromi** (diputuskan v0.11, dari review Langkah 5a): sebelum password di-hash ada **cek awal** tanpa kunci. Kalau cek awal sudah menemukan 0 akun atau lebih dari 50, reset langsung ditolak dengan pesan yang sama, supaya server tidak meng-hash sampai 50 password untuk reset yang pasti ditolak. Kalau ditolak karena lebih dari 50 di cek awal, {n} di pesan ini adalah jumlah saat **cek awal**, bukan cek ulang (pesan 0 akun tidak memakai {n}). Selisih waktunya hanya milidetik.
     - daftar belum diunduh: "Unduh dulu daftar password sebelumnya di halaman Akun.", dengan "halaman Akun" sebagai **tautan ke `/admin/akun`**. Berlaku untuk import **dan** reset massal, karena daftarnya bersama. Teks ini **mengganti** teks v0.10 "Unduh dulu daftar password dari import sebelumnya."
     - unduh kedua kali: tetap teks v0.10 "Daftar password sudah diunduh atau sudah tidak tersedia. Reset password akun yang belum tercatat."
 
@@ -468,7 +471,7 @@ Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset 
 4. Tombol "Reset password {n} akun", dengan konfirmasi. Konfirmasi wajib menyebut bahwa password yang sudah dibagikan tetapi belum dipakai login ikut tidak berlaku (F9).
 - Kosong (n = 0): tombol tidak tampil; tampil teks "kelas tanpa akun yang memenuhi syarat" (F9).
 - Loading: bisa ± 20 detik untuk 50 akun. Tombol nonaktif + "Mereset password… jangan tutup halaman ini."
-- Error: daftar sebelumnya belum diunduh, atau lebih dari 50 akun (F9). Tidak ada akun yang berubah.
+- Error: daftar sebelumnya belum diunduh, lebih dari 50 akun, atau akun baru saja direset admin lain (F9). Tidak ada akun yang berubah.
 - Sukses: dialihkan ke `/admin/akun?kelas={id}` dengan pesan sukses + kotak "Unduh daftar password" (sama seperti setelah import).
 
 ## 9. Keamanan & Privasi (wajib)
@@ -531,6 +534,7 @@ Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset 
      - selama daftar (dari import maupun reset) belum diunduh, import dan reset massal sama-sama ditolak dengan "Unduh dulu daftar password sebelumnya di halaman Akun." + tautan ke `/admin/akun`;
      - lebih dari 50 akun yang memenuhi syarat → seluruh reset ditolak, tidak ada yang berubah;
      - kelas tanpa akun yang memenuhi syarat, termasuk kelas tanpa siswa → "Tidak ada akun di kelas {nama} yang belum mengganti password. …", tidak ada yang berubah;
+     - semua akun hasil cek awal baru saja direset admin lain (masih belum mengganti password) → "Password akun di kelas ini baru saja direset admin lain. Muat ulang halaman.", tidak ada yang berubah oleh request kedua;
      - konfirmasi memakai teks F9, termasuk "Tindakan ini tidak bisa dibatalkan.";
      - kelas sekolah lain atau yang sudah dihapus → 404; role lain mendapat 403.
      - Juga: tes import Langkah 5 yang memeriksa teks lama "Unduh dulu daftar password dari import sebelumnya." disesuaikan ke teks baru.

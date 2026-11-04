@@ -210,7 +210,7 @@ class ImportAkunTest extends AdminTestCase
         $daftarPertama = session(AkunController::SESI_PASSWORD_IMPORT);
 
         $this->import("nama,nis,kelas,no_absen\nSiti,702,XI RPL 1,2\n")
-            ->assertSessionHasErrors(['file' => AkunController::PESAN_IMPORT_BELUM_DIUNDUH]);
+            ->assertSessionHasErrors(['file' => 'Unduh dulu daftar password sebelumnya di halaman Akun.']);
 
         $this->assertFalse(User::where('nis', '702')->exists());
         $this->assertSame($daftarPertama, session(AkunController::SESI_PASSWORD_IMPORT));
@@ -224,7 +224,8 @@ class ImportAkunTest extends AdminTestCase
     {
         // Tanpa kunci sesi, import kedua dari tab lain bisa menimpa sesi dan menghapus
         // daftar password import pertama (temuan review Langkah 5).
-        foreach (['admin.akun.import', 'admin.akun.import.password'] as $nama) {
+        // Reset massal (v0.11) memakai daftar tertunda yang sama, jadi ikut dikunci.
+        foreach (['admin.akun.import', 'admin.akun.import.password', 'admin.kelas.reset-password'] as $nama) {
             $route = Route::getRoutes()->getByName($nama);
             $this->assertGreaterThan(120, $route->locksFor(), "{$nama}: kunci harus lebih lama dari set_time_limit(120).");
             $this->assertGreaterThan(0, $route->waitsFor(), $nama);

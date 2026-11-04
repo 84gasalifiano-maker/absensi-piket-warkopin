@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\ResetMassalKelas;
 use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SimpanKelasRequest;
@@ -58,7 +59,37 @@ class KelasController extends Controller
             'kelas' => $kelas,
             'daftarGuru' => $this->daftarGuru($request->user()->school),
             'tanggalTerkunci' => $kelas->tanggalMulaiTerkunci(),
+            // Kotak reset massal: {n} = jumlah saat halaman dibuka (SPEC F9, §8.2).
+            'jumlahBelumGanti' => $kelas->akunBelumGantiPassword()->count(),
         ]);
+    }
+
+    /**
+     * Reset massal password siswa/PJ kelas ini yang belum mengganti password (SPEC F9, v0.11).
+     * Daftar password baru masuk ke daftar tertunda yang sama dengan import, lalu diunduh
+     * sekali di /admin/akun. Kesalahan (daftar belum diunduh, 0 akun, > 50 akun) kembali
+     * ke form ubah kelas sebagai pesan di kolom "reset_password".
+     */
+    public function resetPassword(Request $request, Kelas $kelas, ResetMassalKelas $resetMassal): RedirectResponse
+    {
+        // Daftar tertunda (dari import atau reset sebelumnya) jangan sampai tertimpa.
+        if ($request->session()->has(AkunController::SESI_PASSWORD_IMPORT)) {
+            throw ValidationException::withMessages(['reset_password' => AkunController::PESAN_DAFTAR_BELUM_DIUNDUH]);
+        }
+
+        // Hashing 50 password butuh ± 20 detik (sama seperti AkunController::import).
+        set_time_limit(120);
+
+        $daftar = $resetMassal->jalankan($kelas);
+
+        // Sengaja di sini, bukan di dalam transaksi: jalankan() baru selesai setelah commit
+        // berhasil, jadi daftar di sesi selalu cocok dengan password di database (juga
+        // kalau transaksi sempat diulang karena deadlock, atau akhirnya gagal).
+        $request->session()->put(AkunController::SESI_PASSWORD_IMPORT, $daftar);
+
+        return redirect()
+            ->route('admin.akun.index', ['kelas' => $kelas->id])
+            ->with('status', ResetMassalKelas::pesanSukses($kelas, count($daftar)));
     }
 
     public function update(SimpanKelasRequest $request, Kelas $kelas): RedirectResponse
