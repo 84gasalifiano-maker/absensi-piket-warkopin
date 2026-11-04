@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AkunController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\HariLiburController;
 use App\Http\Controllers\Admin\KelasController;
+use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\Auth\GantiPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Http\Request;
@@ -77,6 +78,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/hari-libur', [HariLiburController::class, 'index'])->name('hari-libur.index');
             Route::post('/hari-libur', [HariLiburController::class, 'store'])->name('hari-libur.store');
             Route::delete('/hari-libur/{hariLibur}', [HariLiburController::class, 'destroy'])->name('hari-libur.destroy');
+
+            // Pengaturan jam buka/tutup (SPEC F4, v0.13).
+            Route::get('/pengaturan', [PengaturanController::class, 'edit'])->name('pengaturan.edit');
+            Route::post('/pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
         });
     });
 });

@@ -1,9 +1,11 @@
-{{-- Menu admin (SPEC F9). Halaman yang belum dibuat tampil dengan tanda "segera" dan tidak bisa diklik. --}}
+{{-- Menu admin (SPEC F9). Sejak Langkah 7 semua halaman admin sudah ada, jadi tidak ada lagi menu "segera". --}}
 @php
     $menu = [
         ['Dashboard', route('admin'), request()->routeIs('admin')],
         ['Kelas', route('admin.kelas.index'), request()->routeIs('admin.kelas.*')],
         ['Akun', route('admin.akun.index'), request()->routeIs('admin.akun.*')],
+        // Urutan sesuai SPEC F9: Kelas, Akun, Pengaturan, Hari libur.
+        ['Pengaturan', route('admin.pengaturan.edit'), request()->routeIs('admin.pengaturan.*')],
         ['Hari libur', route('admin.hari-libur.index'), request()->routeIs('admin.hari-libur.*')],
     ];
 @endphp
@@ -16,11 +18,5 @@
                'bg-blue-600 text-white' => $aktif,
                'border border-gray-300 bg-white hover:bg-gray-100' => ! $aktif,
            ])>{{ $teks }}</a>
-    @endforeach
-
-    @foreach (['Pengaturan'] as $teks)
-        <span class="cursor-not-allowed rounded-lg border border-dashed border-gray-300 px-4 py-2 text-gray-500">
-            {{ $teks }} <span class="text-xs">(segera)</span>
-        </span>
     @endforeach
 </nav>

@@ -124,9 +124,8 @@ class HariLiburTest extends AdminTestCase
         $html = $this->actingAs($this->admin)->get('/admin')->assertOk()->getContent();
 
         $this->assertStringContainsString('href="'.route('admin.hari-libur.index').'"', $html);
-        // Hanya "Pengaturan" yang masih "segera".
-        $this->assertSame(1, substr_count($html, '(segera)'));
-        $this->assertMatchesRegularExpression('/Pengaturan\s*<span class="text-xs">\(segera\)/', $html);
+        // Sejak Langkah 7 tidak ada lagi menu "segera".
+        $this->assertStringNotContainsString('(segera)', $html);
     }
 
     // ---- Tambah ----

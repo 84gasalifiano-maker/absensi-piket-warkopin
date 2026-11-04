@@ -34,7 +34,8 @@ class KelasTest extends AdminTestCase
             ->assertOk()
             ->assertSeeInOrder(['XI RPL 1', $wali->nama, $pj->nama, '3'])
             ->assertSee('Hari libur')
-            ->assertSee('(segera)');
+            ->assertSee('Pengaturan')
+            ->assertDontSee('(segera)');
     }
 
     public function test_tambah_kelas(): void

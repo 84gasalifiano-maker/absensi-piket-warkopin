@@ -37,6 +37,8 @@ class AksesAdminTest extends AdminTestCase
             ['GET', '/admin/hari-libur'],
             ['POST', '/admin/hari-libur'],
             ['DELETE', '/admin/hari-libur/{h}'],
+            ['GET', '/admin/pengaturan'],
+            ['POST', '/admin/pengaturan'],
         ];
     }
 

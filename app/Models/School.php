@@ -21,6 +21,15 @@ class School extends Model
 
     public const PESAN_ADMIN_PENUH = 'Admin sudah mencapai batas maksimal ('.self::MAKS_ADMIN.').';
 
+    /** Jam jendela tepat waktu, urut dari yang paling awal (SPEC F4). */
+    public const KOLOM_JAM = ['jam_buka_pagi', 'jam_tutup_pagi', 'jam_buka_siang', 'jam_tutup_siang'];
+
+    /** Jam untuk form, tanpa detik: "06:00:00" → "06:00" (SPEC F4, v0.13). */
+    public function jamTanpaDetik(string $kolom): string
+    {
+        return substr((string) $this->getAttribute($kolom), 0, 5);
+    }
+
     public function jumlahAdmin(): int
     {
         return $this->users()->where('role', \App\Enums\Role::Admin)->count();

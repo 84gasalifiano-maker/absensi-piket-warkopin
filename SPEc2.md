@@ -3,7 +3,7 @@
 > Dokumen ini adalah sumber kebenaran tunggal. Semua kode harus sesuai dengan dokumen ini.
 > Kalau ada perubahan fitur, ubah dokumen ini DULU, baru kode.
 
-Status: DRAFT v0.12
+Status: DRAFT v0.13
 Bagian bertanda **[KEPUTUSAN TERBUKA]** belum final — putuskan sebelum fitur terkait dikerjakan.
 
 Perubahan v0.5 (keputusan pemilik proyek): piket hanya Senin–Jumat; tugas piket per siswa (menyapu / merapikan meja & kursi / mengepel) yang berputar tiap minggu; hari libur sekolah (F8).
@@ -27,6 +27,11 @@ Perubahan v0.11 (keputusan pemilik proyek, dari hasil tes manual Langkah 5):
 - langkah 5b lalu 5a sebelum Langkah 6 (§11).
 
 Perubahan v0.12 (keputusan pemilik proyek, untuk Langkah 6): aturan hari libur diputuskan (F8): hanya Senin–Jumat, tahun 2000–2100, tanggal lampau boleh ditambah/dihapus, tidak ada edit, tanggal yang sudah punya submit ditolak; route `GET/POST /admin/hari-libur` + `DELETE /admin/hari-libur/{id}` (§7); teks pesan, konfirmasi hapus, dan urutan daftar (§8.1); menu "Hari libur" di dashboard admin aktif; kriteria selesai Langkah 6 (§11); catatan teknis Langkah 9: submit mengecek hari libur di dalam transaksi dengan `sharedLock()` pada baris sekolah, tambah hari libur dengan `lockForUpdate()` (§11).
+
+Perubahan v0.13 (keputusan pemilik proyek):
+- Langkah 9 diawali cast tanggal khusus yang selalu menyimpan `Y-m-d` (§11, catatan "Teknis awal");
+- jam tutup dihitung sampai akhir menitnya, mis. 07:30 berarti sampai 07:30:59 (F4);
+- halaman pengaturan jam (Langkah 7): format jam, urutan jam, teks pesan, perubahan langsung berlaku, simpan bersamaan (F4, §8, §8.1); kriteria selesai Langkah 7 (§11).
 
 ---
 
@@ -145,6 +150,13 @@ Keputusan F2 (yang sudah diputuskan ditandai "diputuskan"):
 
 ### F4. Batas Waktu & Keterlambatan
 - Jendela waktu tepat waktu diatur admin (default: 06:00–07:30 dan 14:00–15:30 WIB), berlaku Senin–Jumat.
+- **Batas jendela** (diputuskan v0.13): jendela mulai tepat pada jam buka (06:00 berarti mulai 06:00:00) dan **jam tutup dihitung sampai akhir menit itu** (07:30 berarti sampai 07:30:59), sama seperti aturan "sampai 23:59" di bawah.
+- **Pengaturan jam oleh admin** (diputuskan v0.13, halaman di §8.1):
+  - Empat jam: buka pagi, tutup pagi, buka siang, tutup siang. Kedua jendela selalu ada.
+  - Format `JJ:MM` 24 jam, tanpa detik. Disimpan di kolom TIME sebagai `JJ:MM:00`; form selalu menampilkan tanpa detik (mis. 06:00), walau database menyimpan dengan detik.
+  - Harus berurutan ketat: buka pagi < tutup pagi < buka siang < tutup siang (jam yang sama ditolak, supaya kedua jendela terpisah). Tidak ada batas lain (jendela pagi tidak harus sebelum 12:00; tidak ada panjang minimal).
+  - **Perubahan langsung berlaku**, termasuk untuk hari ini: submit memakai jam yang tersimpan saat submit itu diproses. Submit yang sudah masuk tidak dihitung ulang, karena `terlambat` disimpan saat submit.
+  - Dua admin menyimpan bersamaan: yang terakhir menyimpan yang berlaku. Form selalu mengirim keempat jam dan semuanya divalidasi bersama, jadi hasilnya selalu satu set jam yang berurutan.
 - Submit **di dalam jendela** → `terlambat = false`.
 - Submit **setelah jendela tutup sampai 23:59 WIB di hari yang sama** → diterima dengan `terlambat = true`, dan **alasan keterlambatan wajib diisi**.
 - Setelah 23:59 → tidak bisa submit; tercatat `tidak_piket` — **kecuali tanggal libur** (F8) **dan tanggal sebelum `tanggal_mulai_rotasi`** (F2).
@@ -303,6 +315,7 @@ Flag terpisah: terlambat (true/false) + alasan_terlambat
 
 ```
 schools          id, nama, jam_buka_pagi, jam_tutup_pagi, jam_buka_siang, jam_tutup_siang
+                 (TIME, disimpan JJ:MM:00; default 06:00, 07:30, 14:00, 15:30 — F4)
 classes          id, school_id, nama (mis. "XI RPL 1"), wali_kelas_id → users.id,
                  tanggal_mulai_rotasi (date, wajib / NOT NULL — F2)
                  UNIQUE(school_id, nama)
@@ -381,7 +394,7 @@ Aplikasi berbasis halaman (Laravel + Blade), bukan API terpisah. Semua route kec
 | DELETE | /admin/akun/{id} | admin | hapus akun (v0.9; hanya kalau aturan F9 terpenuhi) |
 | POST | /admin/akun/import | admin | import akun siswa/PJ dari CSV (F9, v0.10) |
 | POST | /admin/akun/import/password | admin | unduh daftar password yang tertunda, sekali saja: hasil import (F9, v0.10) atau reset massal (v0.11, daftar bersama; nama route tetap). POST (dengan CSRF), bukan GET, karena menghapus daftar dari sesi |
-| GET/POST | /admin/pengaturan | admin | jam buka/tutup |
+| GET/POST | /admin/pengaturan | admin | form jam buka/tutup / simpan jam buka/tutup (F4, §8.1, v0.13) |
 | GET/POST | /admin/hari-libur | admin | daftar hari libur + form tambah / tambah hari libur (F8, diputuskan v0.12) |
 | DELETE | /admin/hari-libur/{id} | admin | hapus hari libur (F8, v0.12); id milik sekolah lain → 404. Tidak ada edit (F8) |
 
@@ -405,6 +418,7 @@ Pesan error ke user dalam bahasa Indonesia, mis. "Kamu tidak terjadwal piket har
 | Kelola kelas | admin | daftar kelas + form tambah (nama, wali kelas, tanggal mulai rotasi) / ubah (nama, wali kelas, tanggal mulai rotasi; tanggal harus Senin) + tombol hapus (dengan konfirmasi); kotak "Reset password kelas ini" (reset massal) di form ubah kelas (F9, §8.2, v0.11) |
 | Kelola akun | admin | daftar akun + filter kelas & role; form tambah/ubah (isian mengikuti role); tombol reset password (tidak ada untuk akun sendiri); password baru ditampilkan sekali; konfirmasi saat pindah kelas; tombol hapus (dengan konfirmasi) atau teks alasan tidak bisa dihapus; form import CSV (+ contoh format) dan kotak "Unduh daftar password" setelah import atau reset massal; password yang sudah dibuat tidak pernah tampil lagi di tabel maupun form ubah (diputuskan v0.11) |
 | Hari libur | admin | form tambah (tanggal, keterangan) + daftar hari libur + tombol hapus |
+| Pengaturan | admin | form jam buka/tutup pagi & siang (F4, §8.1, v0.13) |
 
 Desain: mobile-first, bahasa Indonesia, tombol besar. Halaman admin boleh lebih padat (dipakai di laptop).
 
@@ -453,6 +467,19 @@ Halaman dirender server (Blade), jadi tidak ada state "loading" terpisah; cukup 
   - Sabtu/Minggu → "Hari libur hanya untuk Senin–Jumat. Sabtu dan Minggu memang tidak ada piket.";
   - tanggal yang sudah punya submit → "Tanggal ini sudah punya submit piket, jadi tidak bisa dijadikan hari libur."
 - Sukses: "Hari libur ditambahkan." / "Hari libur dihapus."
+
+**Pengaturan (admin)** (diputuskan v0.13) — urutan:
+1. Judul "Pengaturan".
+2. Teks: "Jam tepat waktu (WIB), berlaku Senin–Jumat."
+3. Teks: "Jam tutup dihitung sampai akhir menit itu (mis. 07:30 berarti sampai 07:30:59)."
+4. Teks: "Perubahan langsung berlaku, termasuk hari ini. Submit yang sudah masuk tidak berubah."
+5. Kelompok "Pagi": Jam buka, Jam tutup. Kelompok "Siang": Jam buka, Jam tutup. Pemilih jam bawaan browser, terisi jam tersimpan tanpa detik (mis. 06:00).
+6. Tombol "Simpan".
+- Error validasi (isian tidak hilang):
+  - kosong → "Jam buka pagi wajib diisi." (sama untuk keempat jam: "Jam tutup pagi …", "Jam buka siang …", "Jam tutup siang …");
+  - format salah → "Jam buka pagi harus berupa jam yang valid, mis. 06:00." (sama untuk keempat jam);
+  - urutan: "Jam tutup pagi harus setelah jam buka pagi."; "Jam buka siang harus setelah jam tutup pagi."; "Jam tutup siang harus setelah jam buka siang." (dicek setelah keempat jam berformat benar; beberapa pesan bisa muncul sekaligus).
+- Sukses: "Pengaturan jam disimpan."
 
 ### 8.2 Detail layar v0.11
 
@@ -553,11 +580,13 @@ Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset 
    Selesai kalau: admin bisa tambah & hapus libur; role lain mendapat 403; daftar kosong menampilkan "Belum ada hari libur."; keterangan kosong ditolak ("Keterangan wajib diisi.");
    dan (v0.12): admin hanya melihat dan menghapus hari libur sekolahnya sendiri (id sekolah lain → 404); tanggal yang sudah terdaftar ditolak, termasuk dari penyimpanan bersamaan; Sabtu/Minggu ditolak; tahun di luar 2000–2100 ditolak sebagai tanggal tidak valid; tanggal lampau bisa ditambah dan dihapus; tanggal yang sudah punya submit (status apa pun, kelas mana pun di sekolah itu) ditolak, sedangkan submit sekolah lain di tanggal itu tidak berpengaruh; urutan daftar dan teks sesuai §8.1; tambah dan hapus hanya lewat form dengan CSRF; menu "Hari libur" di dashboard admin aktif.
 7. Halaman admin: pengaturan jam buka/tutup (`/admin/pengaturan`, F4) — harus selesai sebelum F3 + F4.
+   Selesai kalau (v0.13): admin bisa mengubah keempat jam, hanya untuk sekolahnya sendiri; role lain mendapat 403; simpan hanya lewat form dengan CSRF; form menampilkan jam tersimpan tanpa detik (sekolah baru: default F4); jam kosong, format salah, dan urutan salah ditolak dengan pesan §8.1, isian tidak hilang; jam disimpan `JJ:MM:00`; teks halaman sesuai §8.1; menu "Pengaturan" di dashboard admin aktif.
 8. F2 Jadwal piket + tugas awal + rotasi (fungsi rotasi sudah ada sejak Langkah 3).
    Ditinjau ulang di langkah ini (catatan review Langkah 4): kalau dua admin memindahkan siswa yang sama pada saat bersamaan, jadwal di kelas perantara bisa tertinggal (`AkunController::update` membaca kelas lama dari data sebelum baris akun dikunci).
    Selesai kalau (contoh tes, `tanggal_mulai_rotasi` = Senin 2 Nov 2026, `tugas_awal` = menyapu): tugas 2–6 Nov = menyapu, 9 Nov = merapikan, 16 Nov = mengepel, 23 Nov = menyapu; simpan siswa ke-10 di satu hari ditolak; simpan siswa ke-4 dengan tugas yang sama di satu hari ditolak; pilihan hari Sabtu tidak ada dan ditolak server; jadwal diatur sebelum `tanggal_mulai_rotasi` → ringkasan & pratinjau memakai `tugas_awal`.
 9. F3 + F4 Submit dengan batas waktu & keterlambatan (+ `submissions.tugas` diisi server, aturan tanggal libur dan tanggal sebelum `tanggal_mulai_rotasi`).
    Selesai kalau: `submissions.tugas` sesuai rotasi walau form dikirim dengan nilai tugas lain; perilaku di tanggal libur sesuai keputusan F3; submit sebelum `tanggal_mulai_rotasi` ditolak.
+   Teknis awal (v0.13, dikerjakan pertama di langkah ini, sebelum fitur submit): buat cast tanggal khusus yang selalu menyimpan format `Y-m-d` (jamnya dibuang), lalu pakai di model yang punya kolom tanggal (`submissions.tanggal`, `hari_libur.tanggal`, `classes.tanggal_mulai_rotasi`). Alasannya (temuan Langkah 6): cast `date` bawaan menyimpan `Y-m-d H:i:s`, jadi di SQLite (tes) tanggal tersimpan dengan jam `00:00:00`, sedangkan `date:Y-m-d` menyimpan nilai apa adanya tanpa dirapikan. Setelah cast ini ada, perbandingan tanggal biasa (`where`, `whereBetween`) bisa memakai index, menggantikan `whereDate`. Diuji di SQLite **dan** MySQL sementara, termasuk: nilai Carbon yang punya jam tersimpan tanpa jam, dan rentang `whereBetween` Senin–Jumat mencakup hari terakhir (Jumat).
    Teknis: akun bisa dihapus admin (F9) bersamaan dengan submit/verifikasi. Hapus akun mengunci baris akun itu, jadi database menolak submit/verifikasi yang menunjuk akun yang sudah terhapus (foreign key) — tangkap dan tampilkan sebagai pesan, bukan halaman error (berlaku juga untuk Langkah 10).
    Teknis (v0.12): penambahan hari libur (Langkah 6) dan submit bisa terjadi bersamaan. Tambah hari libur menolak tanggal yang sudah punya submit (F8), jadi submit **wajib mengecek hari libur di dalam transaksi**, setelah mengunci baris `schools` sekolah itu sebelum bacaan biasa pertama: submit memakai kunci baca bersama (`sharedLock()`), tambah hari libur memakai `lockForUpdate()`. Kunci baca bersama tidak saling menghalangi, jadi submit tidak saling antre di jam sibuk; tambah hari libur menunggu submit yang sedang berjalan selesai, dan sebaliknya. Tanpa kunci di baris yang sama, keduanya bisa lolos pengecekan dan tanggal libur tetap punya submit. Perilaku submit di tanggal libur tetap mengikuti keputusan F3 (masih terbuka sampai langkah ini).
    Teknis: tombol submit yang dinonaktifkan dari server (mis. sebelum jam buka, F4) wajib diberi atribut `data-tetap-nonaktif`, supaya tidak diaktifkan lagi oleh skrip pencegah klik ganda (`resources/js/app.js`).
