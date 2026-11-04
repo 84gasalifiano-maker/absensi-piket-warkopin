@@ -3,7 +3,7 @@
 > Dokumen ini adalah sumber kebenaran tunggal. Semua kode harus sesuai dengan dokumen ini.
 > Kalau ada perubahan fitur, ubah dokumen ini DULU, baru kode.
 
-Status: DRAFT v0.14
+Status: DRAFT v0.15
 Bagian bertanda **[KEPUTUSAN TERBUKA]** belum final — putuskan sebelum fitur terkait dikerjakan.
 
 Perubahan v0.5 (keputusan pemilik proyek): piket hanya Senin–Jumat; tugas piket per siswa (menyapu / merapikan meja & kursi / mengepel) yang berputar tiap minggu; hari libur sekolah (F8).
@@ -34,6 +34,8 @@ Perubahan v0.13 (keputusan pemilik proyek):
 - halaman pengaturan jam (Langkah 7): format jam, urutan jam, teks pesan, perubahan langsung berlaku, simpan bersamaan (F4, §8, §8.1); kriteria selesai Langkah 7 (§11).
 
 Perubahan v0.14 (keputusan pemilik proyek, dari review Langkah 7, untuk Langkah 9): `whereDate` wajib diganti perbandingan tanggal biasa setelah cast tanggal khusus ada (satu cara membandingkan tanggal); waktu submit diambil sekali di awal request; foto diproses di luar transaksi dan dihapus kalau submit ditolak; jam buka/tutup dibaca dari baris sekolah yang dikunci di dalam transaksi (§11 Langkah 9).
+
+Perubahan v0.15 (keputusan pemilik proyek, untuk Langkah 8): keempat keputusan terbuka F2 diputuskan — boleh simpan walau ada siswa belum terjadwal (daftar "Belum terjadwal"); dropdown tugas = tugas di **minggu acuan** (Senin minggu saat form ditampilkan, isian tersembunyi `minggu_acuan`), server menghitung mundur `tugas_awal`; perubahan jadwal langsung berlaku termasuk minggu ini; simpan sekaligus satu kelas tanpa DELETE, siswa di luar form tidak diubah, siswa bukan anggota kelas → seluruh simpan ditolak; kelas yang dibuka per role dan validasi isian (F2). Route `GET /jadwal?kelas={id}` + `POST /jadwal` (§7). Layar kelola jadwal ditulis ulang, tautan "Jadwal" di daftar kelas admin (§8, §8.1). Langkah 8: perbaikan pindah kelas dari review Langkah 4, urutan kunci simpan jadwal (akun → kelas), kriteria selesai tambahan (§11).
 
 ---
 
@@ -100,7 +102,7 @@ Aturan:
 - Batasi percobaan login gagal (maks 5 kali per menit per NIS/email + IP).
 
 ### F2. Jadwal Piket & Tugas
-- Guru/PJ kebersihan/admin mengatur jadwal per kelas: untuk setiap siswa dipilih **hari** dan **tugas awal** (keduanya dropdown).
+- Guru/PJ kebersihan/admin mengatur jadwal per kelas: untuk setiap siswa dipilih **hari** dan **tugas minggu ini** (keduanya dropdown). Dropdown tugas berarti tugas di **minggu acuan**; yang disimpan tetap `duty_schedules.tugas_awal`, hasil hitung mundur server (diputuskan v0.15, lihat "Arti dropdown tugas" di bawah).
 - Hari piket: **Senin–Jumat** (hari 1–5). Sabtu dan Minggu tidak ada piket.
 - Setiap siswa terjadwal di **tepat satu hari** per minggu (dijaga `UNIQUE(class_id, user_id)`).
 - Yang boleh dijadwalkan hanya `siswa`/`pj_kebersihan` dengan `users.class_id` = kelas itu.
@@ -115,9 +117,8 @@ Aturan:
 - Beranda siswa: "Hari ini kamu piket — tugas: X" kalau terjadwal hari ini, hari ini bukan hari libur (F8), dan jadwal sudah berlaku (tanggal ≥ `tanggal_mulai_rotasi`).
 
 Keputusan F2 (yang sudah diputuskan ditandai "diputuskan"):
-- **[KEPUTUSAN TERBUKA] "Tepat satu hari"** — boleh simpan kalau masih ada siswa yang belum terjadwal?
-  (a) boleh; layar menampilkan daftar "Belum terjadwal";
-  (b) tidak boleh; semua siswa kelas wajib terjadwal. Catatan: kapasitas maks 5 × 9 = 45 siswa — kelas > 45 siswa tidak bisa memenuhi (b).
+- **"Tepat satu hari" — diputuskan (a)** (v0.15): boleh simpan walau masih ada siswa yang belum terjadwal; layar menampilkan daftar "Belum terjadwal" (§8.1). "Tepat satu hari" berarti **paling banyak** satu hari per siswa (`UNIQUE(class_id, user_id)`).
+  Alasan: kapasitas maks 5 × 9 = 45 siswa, jadi kelas > 45 siswa tidak mungkin semua terjadwal; siswa pindah kelas memang muncul sebagai "Belum terjadwal" di kelas baru (v0.6).
 - **`classes.tanggal_mulai_rotasi` — diputuskan:**
   - Wajib diisi (NOT NULL, v0.6). Untuk kelas baru, diisi admin saat menambah kelas (F9). Kelas yang sudah ada sebelum migration Langkah 3 diisi oleh migration/seeder.
   - Hanya **admin** yang boleh mengubahnya, di `/admin/kelas` (v0.7). Guru/PJ hanya melihat. Mengubahnya menggeser tugas semua siswa kelas itu.
@@ -125,18 +126,30 @@ Keputusan F2 (yang sudah diputuskan ditandai "diputuskan"):
   - **Wajib hari Senin** (v0.7) → "Tanggal mulai rotasi harus hari Senin."
   - **Minggu kalender = Senin–Minggu** (v0.7). Minggu ke-0 = Senin `tanggal_mulai_rotasi` sampai Minggu berikutnya; tugas bergeser setiap Senin.
   - **Sebelum `tanggal_mulai_rotasi`: jadwal belum berlaku** (v0.7) — tidak ada kewajiban piket, tidak bisa submit, tidak dihitung terjadwal maupun `tidak_piket` di rekap. Beranda: "Jadwal piket mulai berlaku {tanggal}."
-- **[KEPUTUSAN TERBUKA] Arti pilihan di dropdown tugas awal.** Secara harfiah `tugas_awal` = tugas di minggu ke-0 (minggu `tanggal_mulai_rotasi`). Akibatnya, kalau jadwal diatur di minggu ke-4 dan dipilih "Menyapu", minggu ini siswa justru mendapat "Merapikan".
-  (a) tetap harfiah; form menampilkan pratinjau "Tugas minggu ini: X" di samping dropdown;
-  (b) dropdown berarti "tugas minggu ini"; server menghitung mundur dan menyimpan `tugas_awal` yang setara.
-  Untuk kedua opsi: sebelum `tanggal_mulai_rotasi` belum ada "minggu ini", jadi pilihan dropdown = tugas minggu ke-0 dan disimpan apa adanya sebagai `tugas_awal`.
-- **[KEPUTUSAN TERBUKA] Jadwal atau `tugas_awal` diubah di tengah minggu.** Tugas dan rekap dihitung dari jadwal saat ini, jadi perubahan langsung berlaku — termasuk untuk hari yang sudah lewat dan rekap minggu-minggu lalu (masalah ini sudah ada sejak v0.4). Siswa yang dipindah dari Senin (sudah lewat) ke Kamis bisa piket dua kali, atau tidak sama sekali, minggu itu. Submit yang sudah ada tetap memakai `submissions.tugas`.
-  (a) berlaku langsung, terima efeknya ke rekap;
-  (b) berlaku mulai minggu depan — butuh kolom tambahan (mis. `berlaku_mulai`) yang belum ada di model data;
-  (c) larang perubahan untuk siswa yang sudah submit minggu ini, atau hanya boleh diubah Sabtu–Minggu.
+- **Arti pilihan di dropdown tugas — diputuskan (b) dengan pengaman "minggu acuan"** (v0.15). Latar: secara harfiah `tugas_awal` = tugas di minggu ke-0 (minggu `tanggal_mulai_rotasi`); kalau jadwal diatur di minggu ke-4 dan dipilih "Menyapu", minggu ini siswa justru mendapat "Merapikan". Karena itu:
+  - Dropdown berarti tugas siswa di **minggu acuan**. Server menghitung mundur dan menyimpan `tugas_awal` yang setara, memakai fungsi rotasi yang sama (§6, satu tempat).
+  - **Minggu acuan** = tanggal Senin minggu (Senin–Minggu, F2) saat form **ditampilkan**, dikirim form sebagai isian tersembunyi `minggu_acuan` (format `YYYY-MM-DD`). Server menghitung mundur memakai minggu acuan itu, **bukan** minggu saat simpan. Alasan: form yang dibuka hari Minggu lalu disimpan Senin tidak boleh menggeser tugas siapa pun.
+  - Validasi `minggu_acuan` di server: format tanggal valid, hari Senin, tidak setelah Senin minggu ini, dan tidak lebih dari 4 minggu sebelum Senin minggu ini. Selain itu **seluruh simpan ditolak**: "Halaman jadwal sudah terlalu lama dibuka. Muat ulang halaman."
+  - Minggu acuan sebelum minggu `tanggal_mulai_rotasi` (belum ada "minggu ini" saat form ditampilkan): pilihan dropdown = tugas minggu ke-0, disimpan apa adanya sebagai `tugas_awal` (aturan lama "untuk kedua opsi" tetap).
+  - Label kolom dropdown menyebut tanggal minggu acuan, mis. "Tugas minggu ini (2–8 Nov)" (lintas bulan: "30 Nov–6 Des"). Sebelum `tanggal_mulai_rotasi`: "Tugas mulai {tanggal}", format tanggal "Senin, 2 Nov 2026".
+  - Pratinjau "Tugas minggu ini: X" di samping dropdown **tidak diperlukan** (itu untuk opsi (a) yang tidak dipilih).
+- **Jadwal diubah di tengah minggu — diputuskan (a)** (v0.15): berlaku langsung, termasuk untuk hari yang sudah lewat dan rekap; tidak ada kolom baru. Tugas dan rekap dihitung dari jadwal saat ini (masalah ini sudah ada sejak v0.4): siswa yang dipindah dari Senin (sudah lewat) ke Kamis bisa piket dua kali, atau tidak sama sekali, minggu itu — efek ini diterima. Layar menampilkan "Perubahan langsung berlaku, termasuk minggu ini." (§8.1). Submit yang sudah ada tetap memakai `submissions.tugas`.
 - **Siswa pindah kelas — diputuskan (v0.6):** saat admin mengubah `users.class_id`, baris `duty_schedules` siswa itu di kelas lama **otomatis dihapus**; siswa muncul sebagai "Belum terjadwal" di kelas baru. Sebelum menyimpan, admin melihat konfirmasi: "Jadwal piket siswa ini di kelas lama akan dihapus." (lihat F9). Submit lama tetap tersimpan dengan `class_id` kelas lama.
-- **[KEPUTUSAN TERBUKA] Cara simpan jadwal:**
-  (a) sekaligus satu kelas (satu POST berisi semua siswa; batas dicek pada hasil akhir — memudahkan tukar hari/tugas antar siswa);
-  (b) per siswa (POST tambah/ubah satu siswa, DELETE hapus satu) — tukar di hari yang sudah penuh harus lewat dua langkah.
+- **Cara simpan jadwal — diputuskan (a)** (v0.15): sekaligus satu kelas (satu POST berisi semua siswa di form; batas dicek pada hasil akhir — memudahkan tukar hari/tugas antar siswa). **Tidak ada DELETE**: mengeluarkan siswa dari jadwal = pilih "— Belum terjadwal —" di dropdown hari.
+  - **Siswa yang tidak ada di form** (mis. baru dipindah ke kelas ini setelah form dibuka) **tidak diubah** saat simpan; jadwalnya (kalau ada) tetap dan ikut dihitung dalam batas 9/3.
+  - **Siswa yang dikirim tapi bukan anggota kelas** (sudah dipindah/dihapus, bukan `siswa`/`pj_kebersihan`, atau id asing) → **seluruh simpan ditolak**, tidak ada yang berubah: "Daftar siswa kelas ini baru saja berubah. Muat ulang halaman."
+  - Dua orang menyimpan jadwal kelas yang sama bersamaan: yang terakhir menyimpan yang berlaku (untuk siswa yang ada di form-nya), seperti pengaturan jam (F4).
+- **Kelas yang dibuka di `/jadwal`** (diputuskan v0.15):
+  - `pj_kebersihan`: selalu kelasnya sendiri (parameter `kelas` diabaikan).
+  - `guru`: kelas yang diwalikannya — 1 kelas → langsung; > 1 kelas → pilih dulu; 0 kelas → "Kamu belum menjadi wali kelas mana pun."
+  - `admin`: pilih dari kelas di sekolahnya.
+  - Kelas yang bukan haknya, milik sekolah lain, atau sudah dihapus → 404 (halaman 404 F9). `siswa` → 403.
+- **Validasi isian per siswa** (diputuskan v0.15, pesan bahasa Indonesia):
+  - hari kosong = belum terjadwal; kalau hari kosong, tugas diabaikan;
+  - hari selain 1–5 (termasuk 6/Sabtu) → "Hari piket hanya Senin–Jumat.";
+  - hari diisi tapi tugas kosong → "Tugas wajib dipilih.";
+  - tugas di luar enum → "Tugas tidak valid.";
+  - pesan batas tetap "Hari Senin sudah penuh (maks 9 siswa)" dan "Tugas {label} di hari Senin sudah 3 siswa", dengan {label} = label tugas di **minggu acuan**, mis. "Tugas Merapikan meja & kursi di hari Senin sudah 3 siswa".
 
 ### F3. Submit Piket
 - Hanya siswa (termasuk PJ) yang terjadwal hari itu (Senin–Jumat) yang bisa submit, dan hanya kalau jadwal sudah berlaku (tanggal ≥ `tanggal_mulai_rotasi`, F2). Submit sebelum tanggal itu ditolak server dengan pesan "Jadwal piket mulai berlaku {tanggal}." (v0.8).
@@ -381,7 +394,8 @@ Aplikasi berbasis halaman (Laravel + Blade), bukan API terpisah. Semua route kec
 | GET | /verifikasi | pj, guru | antrean submit kelasnya |
 | POST | /verifikasi/{id} | pj, guru | setujui/tolak |
 | GET | /rekap?minggu= | pj, guru, admin | rekap mingguan; `&format=csv` untuk ekspor |
-| GET/POST/DELETE | /jadwal | pj, guru, admin | kelola jadwal kelasnya (hari + tugas awal); bentuk POST/DELETE → [KEPUTUSAN TERBUKA] F2 "Cara simpan jadwal" |
+| GET | /jadwal?kelas={id} | pj, guru, admin | halaman kelola jadwal; tanpa `kelas` untuk guru > 1 kelas/admin = pilih kelas; PJ: `kelas` diabaikan (F2, v0.15) |
+| POST | /jadwal | pj, guru, admin | simpan jadwal satu kelas sekaligus (CSRF). Isian: `kelas` (id; diabaikan untuk PJ), `minggu_acuan` (YYYY-MM-DD, Senin), `jadwal[{user_id}][hari]` (kosong atau 1–5), `jadwal[{user_id}][tugas]` (menyapu\|merapikan\|mengepel = tugas di minggu acuan). Tidak ada DELETE (v0.15) |
 | GET | /admin | admin | dashboard admin (F9) |
 | GET/POST | /admin/kelas | admin | daftar kelas + form tambah / tambah kelas (F9) |
 | GET | /admin/kelas/{id}/edit | admin | form ubah kelas (v0.8) |
@@ -415,9 +429,9 @@ Pesan error ke user dalam bahasa Indonesia, mis. "Kamu tidak terjadwal piket har
 | Riwayat | siswa, pj | daftar submit + tugas + status + alasan tolak |
 | Antrean verifikasi | pj, guru | kartu submit: nama, tugas, foto, jam, tanda terlambat + alasan, tombol setujui/tolak; peringatan penghapusan foto (mulai Jumat sore) |
 | Rekap mingguan | pj, guru, admin | pilih minggu (Senin–Jumat) + tabel per siswa + keterangan tanggal libur minggu itu + ekspor CSV; kolom tugas → [KEPUTUSAN TERBUKA] F6 |
-| Kelola jadwal | pj, guru, admin | per siswa: dropdown hari + dropdown tugas awal; ringkasan isi per hari × tugas |
+| Kelola jadwal | pj, guru, admin | per siswa: dropdown hari + dropdown tugas minggu ini (minggu acuan); ringkasan isi per hari × tugas; daftar "Belum terjadwal" (F2, §8.1, v0.15) |
 | Admin | admin | tabel kelas (nama, wali, PJ, jumlah siswa) + menu kelas/akun/pengaturan/hari libur; menu yang belum dibuat tampil dengan tanda "segera" dan tidak bisa diklik |
-| Kelola kelas | admin | daftar kelas + form tambah (nama, wali kelas, tanggal mulai rotasi) / ubah (nama, wali kelas, tanggal mulai rotasi; tanggal harus Senin) + tombol hapus (dengan konfirmasi); kotak "Reset password kelas ini" (reset massal) di form ubah kelas (F9, §8.2, v0.11) |
+| Kelola kelas | admin | daftar kelas + form tambah (nama, wali kelas, tanggal mulai rotasi) / ubah (nama, wali kelas, tanggal mulai rotasi; tanggal harus Senin) + tombol hapus (dengan konfirmasi); kotak "Reset password kelas ini" (reset massal) di form ubah kelas (F9, §8.2, v0.11); tautan "Jadwal" per kelas di daftar kelas, ke `/jadwal?kelas={id}` (v0.15; menu dashboard admin F9 tidak berubah) |
 | Kelola akun | admin | daftar akun + filter kelas & role; form tambah/ubah (isian mengikuti role); tombol reset password (tidak ada untuk akun sendiri); password baru ditampilkan sekali; konfirmasi saat pindah kelas; tombol hapus (dengan konfirmasi) atau teks alasan tidak bisa dihapus; form import CSV (+ contoh format) dan kotak "Unduh daftar password" setelah import atau reset massal; password yang sudah dibuat tidak pernah tampil lagi di tabel maupun form ubah (diputuskan v0.11) |
 | Hari libur | admin | form tambah (tanggal, keterangan) + daftar hari libur + tombol hapus |
 | Pengaturan | admin | form jam buka/tutup pagi & siang (F4, §8.1, v0.13) |
@@ -440,15 +454,19 @@ Halaman dirender server (Blade), jadi tidak ada state "loading" terpisah; cukup 
 3. Status submit hari ini (menunggu / disetujui / ditolak + alasan + tombol submit ulang).
 4. Tautan ke Riwayat.
 
-**Kelola jadwal (pj, guru, admin)** — dipakai PJ di HP:
-1. Nama kelas + tanggal mulai rotasi (hanya-baca; hanya admin yang mengubah, di `/admin/kelas`).
-2. Ringkasan Senin–Jumat: jumlah siswa per hari (x/9), dirinci per tugas minggu ini (x/3). Sebelum `tanggal_mulai_rotasi` belum ada "minggu ini": ringkasan dirinci per tugas minggu ke-0 (= `tugas_awal`), dengan judul "Mulai {tanggal}".
-3. Daftar siswa kelas, urut no. absen: nama, dropdown hari, dropdown tugas awal (+ pratinjau "Tugas minggu ini: X" kalau dipilih opsi (a) di F2; sebelum `tanggal_mulai_rotasi` pratinjaunya "Tugas mulai {tanggal}: X", dengan X = `tugas_awal`).
-4. Daftar "Belum terjadwal" (kalau dipilih opsi (a) di F2).
-5. Tombol Simpan besar, menempel di bawah layar.
-- Kosong (belum ada jadwal): semua siswa tampil sebagai belum terjadwal + petunjuk singkat cara mengisi.
-- Error validasi: pesan di atas daftar, hari/tugas yang melebihi batas disorot, isian tidak hilang.
+**Kelola jadwal (pj, guru, admin)** (diputuskan v0.15) — dipakai PJ di HP. Urutan:
+1. Nama kelas + tanggal mulai rotasi (hanya-baca; hanya admin yang mengubah, di `/admin/kelas`). Guru > 1 kelas/admin: tautan "Pilih kelas lain".
+2. Teks: "Perubahan langsung berlaku, termasuk minggu ini."
+3. Ringkasan Senin–Jumat: jumlah siswa per hari (x/9), dirinci per tugas minggu acuan (x/3), dengan judul "Minggu ini (2–8 Nov)". Sebelum `tanggal_mulai_rotasi`: dirinci per `tugas_awal`, dengan judul "Mulai {tanggal}". Saat error validasi, ringkasan dihitung dari isian yang dikirim (supaya yang melebihi batas terlihat, mis. 10/9) dan sel yang melebihi batas disorot.
+4. Daftar siswa kelas, urut no. absen: no. absen + nama, dropdown hari ("— Belum terjadwal —", Senin–Jumat; tanpa Sabtu), dropdown tugas berlabel sesuai F2 ("Tugas minggu ini (2–8 Nov)" / "Tugas mulai {tanggal}"). Isian tersembunyi `minggu_acuan`.
+5. Daftar "Belum terjadwal": nama siswa yang belum punya hari, dari data tersimpan.
+6. Tombol "Simpan" besar, menempel di bawah layar.
+- Kosong (belum ada jadwal): semua siswa tampil sebagai belum terjadwal + petunjuk "Pilih hari dan tugas untuk setiap siswa, lalu tekan Simpan." Kelas tanpa siswa: "Kelas ini belum punya siswa."
+- Halaman pilih kelas (guru > 1 kelas, admin): judul "Jadwal piket", daftar nama kelas sebagai tautan. Admin tanpa kelas: "Belum ada kelas." (Guru tanpa kelas: pesan F2 "Kamu belum menjadi wali kelas mana pun.")
+- Loading: tombol nonaktif + "Menyimpan…" (cegah klik ganda, di atas).
+- Error validasi: pesan di atas daftar, isian tidak hilang.
 - Sukses: "Jadwal tersimpan."
+- Tautan masuk: "Jadwal piket" di halaman sementara `/beranda` (hanya PJ) dan `/verifikasi` (guru), sampai halaman itu dibuat di Langkah 9/10. Admin: tautan "Jadwal" per kelas di daftar kelas (§8).
 
 **Antrean verifikasi (pj, guru)**: kartu menampilkan tugas di bawah nama. Banner peringatan F7 muncul mulai Jumat sore. Kosong: "Tidak ada submit yang menunggu verifikasi."
 
@@ -585,7 +603,17 @@ Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset 
    Selesai kalau (v0.13): admin bisa mengubah keempat jam, hanya untuk sekolahnya sendiri; role lain mendapat 403; simpan hanya lewat form dengan CSRF; form menampilkan jam tersimpan tanpa detik (sekolah baru: default F4); jam kosong, format salah, dan urutan salah ditolak dengan pesan §8.1, isian tidak hilang; jam disimpan `JJ:MM:00`; teks halaman sesuai §8.1; menu "Pengaturan" di dashboard admin aktif.
 8. F2 Jadwal piket + tugas awal + rotasi (fungsi rotasi sudah ada sejak Langkah 3).
    Ditinjau ulang di langkah ini (catatan review Langkah 4): kalau dua admin memindahkan siswa yang sama pada saat bersamaan, jadwal di kelas perantara bisa tertinggal (`AkunController::update` membaca kelas lama dari data sebelum baris akun dikunci).
-   Selesai kalau (contoh tes, `tanggal_mulai_rotasi` = Senin 2 Nov 2026, `tugas_awal` = menyapu): tugas 2–6 Nov = menyapu, 9 Nov = merapikan, 16 Nov = mengepel, 23 Nov = menyapu; simpan siswa ke-10 di satu hari ditolak; simpan siswa ke-4 dengan tugas yang sama di satu hari ditolak; pilihan hari Sabtu tidak ada dan ditolak server; jadwal diatur sebelum `tanggal_mulai_rotasi` → ringkasan & pratinjau memakai `tugas_awal`.
+   Selesai kalau (contoh tes, `tanggal_mulai_rotasi` = Senin 2 Nov 2026, `tugas_awal` = menyapu): tugas 2–6 Nov = menyapu, 9 Nov = merapikan, 16 Nov = mengepel, 23 Nov = menyapu; simpan siswa ke-10 di satu hari ditolak; simpan siswa ke-4 dengan tugas yang sama di satu hari ditolak; pilihan hari Sabtu tidak ada dan ditolak server; jadwal diatur sebelum `tanggal_mulai_rotasi` → ringkasan & label tugas memakai `tugas_awal`.
+   **Perbaikan catatan review Langkah 4 dikerjakan di langkah ini** (v0.15): `AkunController::update` membaca kelas lama dari baris akun yang sudah dikunci, bukan dari data sebelum dikunci; ada tes dengan data akun yang berubah setelah dibaca.
+   **Teknis — urutan kunci simpan jadwal** (v0.15), dalam satu transaksi, diulang maks 3 kali kalau bentrok kunci/deadlock:
+   1. Kunci baris akun siswa yang ada di form (ditambah akun PJ yang menyimpan) dengan `sharedLock()`, lewat primary key, urut id — **sebelum** bacaan biasa pertama.
+   2. Kunci baris kelas dengan `lockForUpdate()` (antre dengan simpan jadwal lain dan hapus kelas). Kelas sudah dihapus → 404.
+   3. Cek ulang hak akses dari baris yang dikunci (guru: `wali_kelas_id`; PJ: `class_id` & role akunnya sendiri).
+   4. Cek keanggotaan setiap siswa di form dari baris akun yang dikunci (ada, `siswa`/`pj_kebersihan`, `class_id` = kelas ini). Gagal → seluruh simpan ditolak (pesan F2).
+   5. Baca jadwal kelas yang ada, gabungkan dengan isian (siswa di luar form tidak diubah), cek batas 9/3 pada hasil akhir, lalu tulis (ubah/tambah/hapus hanya untuk siswa di form).
+   - Alasan kunci akun tidak dihindari: menambah baris jadwal baru otomatis mengunci baca baris akun itu (pemeriksaan foreign key InnoDB). Kalau kunci itu baru terjadi di akhir (setelah kunci kelas), urutannya kelas→akun, berlawanan dengan pindah kelas (akun→kelas tujuan) sehingga bisa deadlock. Dengan mengunci akun lebih dulu, urutannya sama dengan pindah kelas: **akun → kelas**. Kunci baca bersama tidak saling menghalangi antar simpan jadwal; hanya pindah kelas, hapus akun, dan reset password akun yang sama yang menunggu sebentar.
+   - Akibatnya untuk pindah kelas bersamaan: kalau pindah kelas selesai duluan, simpan jadwal melihat siswa itu bukan anggota → ditolak; kalau simpan jadwal duluan, pindah kelas menunggu lalu menghapus jadwal kelas lama siswa itu. Tidak ada jadwal yang tertinggal.
+   Selesai kalau juga (v0.15): `siswa` → 403; PJ hanya kelasnya, guru hanya kelas walinya, admin hanya sekolahnya (selain itu 404); simpan hanya lewat form dengan CSRF; boleh simpan dengan siswa belum terjadwal dan daftar "Belum terjadwal" tampil; dropdown tugas = tugas minggu acuan dan `tugas_awal` disimpan hasil hitung mundur; **form tanpa perubahan yang disimpan di minggu berbeda dari minggu acuan → `tugas_awal` semua siswa tidak berubah** (dengan uji mutasi); form yang ditampilkan sebelum `tanggal_mulai_rotasi` lalu disimpan sesudahnya → pilihan disimpan apa adanya; `minggu_acuan` bukan Senin / di masa depan / lebih dari 4 minggu lalu ditolak; siswa yang tidak ada di form tidak berubah; siswa yang dikirim tapi bukan anggota kelas → seluruh simpan ditolak; teks layar sesuai §8.1 termasuk "Perubahan langsung berlaku, termasuk minggu ini."; pindah kelas membaca kelas lama dari baris akun yang dikunci.
 9. F3 + F4 Submit dengan batas waktu & keterlambatan (+ `submissions.tugas` diisi server, aturan tanggal libur dan tanggal sebelum `tanggal_mulai_rotasi`).
    Selesai kalau: `submissions.tugas` sesuai rotasi walau form dikirim dengan nilai tugas lain; perilaku di tanggal libur sesuai keputusan F3; submit sebelum `tanggal_mulai_rotasi` ditolak.
    Selesai kalau juga (v0.14): tidak ada lagi `whereDate` di kode, dan tes penuh hijau di SQLite dan MySQL sementara; submit yang ditolak di dalam transaksi tidak meninggalkan file foto di storage; status `terlambat` dan `created_at` memakai waktu awal request, jadi berkas yang sampai sebelum jam tutup tetap tepat waktu walau kompresi foto melewati jam tutup.
