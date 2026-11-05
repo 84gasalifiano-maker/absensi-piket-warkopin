@@ -82,6 +82,51 @@
     }
 }
 
+/*
+ * Kotak centang bertema (dipakai "Ingat saya"): latar, garis, dan tanda centang dari token,
+ * supaya di mode gelap tidak memakai abu-abu bawaan browser. Ukuran sama dengan size-5 (20 px).
+ * Ditulis di sini, bukan kelas checked:…, supaya atribut checked tetap mudah dicek tes.
+ */
+@layer components {
+    .kotak-centang {
+        appearance: none;
+        display: grid;
+        place-content: center;
+        flex-shrink: 0;
+        width: 1.25rem;
+        height: 1.25rem;
+        border: 2px solid var(--color-garis-isian);
+        border-radius: 0.375rem;
+        background-color: var(--color-permukaan);
+        cursor: pointer;
+    }
+
+    .kotak-centang::before {
+        content: '';
+        width: 0.75rem;
+        height: 0.75rem;
+        transform: scale(0);
+        background-color: var(--color-pada-utama);
+        clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+    }
+
+    .kotak-centang:checked {
+        border-color: var(--color-utama);
+        background-color: var(--color-utama);
+    }
+
+    .kotak-centang:checked::before {
+        transform: scale(1);
+    }
+
+    /* Mode kontras tinggi Windows: tanda centang tetap terlihat. */
+    @media (forced-colors: active) {
+        .kotak-centang::before {
+            background-color: CanvasText;
+        }
+    }
+}
+
 /* Sembunyikan tombol "lihat password" bawaan Edge; kita punya tombol sendiri. */
 input::-ms-reveal,
 input::-ms-clear {

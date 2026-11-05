@@ -135,6 +135,43 @@ class FondasiDesainTest extends TestCase
         $this->assertMatchesRegularExpression('/<p id="login-error" class="[^"]*\btext-bahaya\b[^"]*">/', $html);
         $this->assertMatchesRegularExpression('/<input type="checkbox" name="remember" value="1"\s+checked/', $html); // centang lama dipertahankan
         $this->assertDoesNotMatchRegularExpression('/<input\s+id="password"[^>]*\bvalue=/', $html); // password tidak pernah diisi ulang
+
+        // Bingkai kolom yang salah ikut warna error; kolom lain tetap.
+        $this->assertKelas($html, ['border-bahaya', 'focus:border-bahaya'], '/<input\s+id="login"[^>]*class="([^"]*)"/');
+        $this->assertTanpaKelas($html, ['border-garis-isian', 'focus:border-utama'], '/<input\s+id="login"[^>]*class="([^"]*)"/');
+        $this->assertKelas($html, ['border-garis-isian'], '/<input\s+id="password"[^>]*class="([^"]*)"/');
+        $this->assertTanpaKelas($html, ['border-bahaya'], '/<input\s+id="password"[^>]*class="([^"]*)"/');
+    }
+
+    /** Kotak "Ingat saya" memakai warna tema, bukan abu-abu bawaan browser (persetujuan contoh login). */
+    public function test_kotak_centang_memakai_token_warna(): void
+    {
+        $html = $this->get(route('login'))->getContent();
+        $this->assertMatchesRegularExpression('/<input type="checkbox" name="remember" value="1"\s+class="kotak-centang">/', $html);
+
+        $css = file_get_contents(resource_path('css/app.css'));
+        $aturan = function (string $selektor) use ($css): string {
+            $this->assertSame(1, preg_match('/'.preg_quote($selektor, '/').'\s*\{([^}]*)\}/', $css, $cocok), "Aturan {$selektor} tidak ada");
+
+            return $cocok[1];
+        };
+
+        $kotak = $aturan('.kotak-centang');
+        $this->assertMatchesRegularExpression('/appearance:\s*none;/', $kotak);
+        $this->assertMatchesRegularExpression('/width:\s*1\.25rem;[^}]*height:\s*1\.25rem;/s', $kotak); // = size-5, layout tidak bergeser
+        $this->assertMatchesRegularExpression('/border:\s*2px solid var\(--color-garis-isian\);/', $kotak);
+        $this->assertMatchesRegularExpression('/background-color:\s*var\(--color-permukaan\);/', $kotak);
+
+        $dicentang = $aturan('.kotak-centang:checked');
+        $this->assertMatchesRegularExpression('/border-color:\s*var\(--color-utama\);/', $dicentang);
+        $this->assertMatchesRegularExpression('/background-color:\s*var\(--color-utama\);/', $dicentang);
+
+        $this->assertMatchesRegularExpression('/background-color:\s*var\(--color-pada-utama\);/', $aturan('.kotak-centang::before'));
+        $this->assertMatchesRegularExpression('/transform:\s*scale\(1\);/', $aturan('.kotak-centang:checked::before'));
+
+        // Tidak ada warna mentah di aturan kotak centang (selain CanvasText untuk mode kontras tinggi).
+        preg_match_all('/\.kotak-centang[^{]*\{[^}]*\}/', $css, $semua);
+        $this->assertDoesNotMatchRegularExpression('/#[0-9a-f]{3,8}\b|rgba?\(|oklch\(/i', implode("\n", $semua[0]));
     }
 
     public function test_tombol_keluar_dan_tautan_ganti_password_di_layout(): void
@@ -176,9 +213,11 @@ class FondasiDesainTest extends TestCase
         $field = Blade::render('<x-field name="nama" label="Nama" />');
         $select = Blade::render('<x-select name="hari" label="Hari" :options="[1 => \'Senin\']" />');
 
-        $harapan = ['min-h-11', 'border-garis-isian', 'bg-permukaan', 'text-teks', 'text-base'];
+        $harapan = ['min-h-11', 'border-garis-isian', 'focus:border-utama', 'bg-permukaan', 'text-teks', 'text-base'];
         $this->assertKelas($field, $harapan, '/<input[^>]*class="([^"]*)"/');
         $this->assertKelas($select, $harapan, '/<select[^>]*class="([^"]*)"/');
+        $this->assertTanpaKelas($field, ['border-bahaya'], '/<input[^>]*class="([^"]*)"/');
+        $this->assertTanpaKelas($select, ['border-bahaya'], '/<select[^>]*class="([^"]*)"/');
     }
 
     /** Perilaku x-field/x-select tetap setelah warnanya diganti token: error, aria-*, isian lama. */
@@ -200,6 +239,27 @@ class FondasiDesainTest extends TestCase
         $this->assertMatchesRegularExpression('/<option value="2"\s+selected>Selasa<\/option>/', $select);
         $this->assertDoesNotMatchRegularExpression('/<option value="1"\s+selected>/', $select);
         $this->assertMatchesRegularExpression('/<p id="hari-error" class="[^"]*\btext-bahaya\b[^"]*">Hari wajib dipilih\.<\/p>/', $select);
+
+        // Bingkai kolom yang salah ikut warna error, dengan tebal & tinggi yang sama.
+        foreach (['field' => [$field, '/<input[^>]*class="([^"]*)"/'], 'select' => [$select, '/<select[^>]*class="([^"]*)"/']] as [$html, $pola]) {
+            $this->assertKelas($html, ['border', 'border-bahaya', 'focus:border-bahaya', 'min-h-11'], $pola);
+            $this->assertTanpaKelas($html, ['border-garis-isian', 'focus:border-utama', 'border-2'], $pola);
+        }
+    }
+
+    /**
+     * Atribut class pertama yang cocok dengan $pola TIDAK memuat kelas $dilarang.
+     *
+     * @param  list<string>  $dilarang
+     */
+    private function assertTanpaKelas(string $html, array $dilarang, string $pola): void
+    {
+        $this->assertSame(1, preg_match($pola, $html, $cocok), "Tidak ada atribut class di: {$html}");
+        $kelas = preg_split('/\s+/', trim($cocok[1]));
+
+        foreach ($dilarang as $k) {
+            $this->assertNotContains($k, $kelas, "Kelas {$k} tidak boleh ada di: {$cocok[1]}");
+        }
     }
 
     /**

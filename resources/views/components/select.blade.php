@@ -11,7 +11,12 @@
     <select
         id="{{ $name }}"
         name="{{ $name }}"
-        {{ $attributes->class('block min-h-11 w-full rounded-xl border border-garis-isian bg-permukaan px-4 py-3 text-base text-teks focus:border-utama') }}
+        {{ $attributes->class([
+            'block min-h-11 w-full rounded-xl border bg-permukaan px-4 py-3 text-base text-teks',
+            // Bingkai dropdown yang salah ikut warna error (tebal sama, jadi layout tidak bergeser).
+            'border-bahaya focus:border-bahaya' => $errors->has($name),
+            'border-garis-isian focus:border-utama' => ! $errors->has($name),
+        ]) }}
         @error($name) aria-invalid="true" aria-describedby="{{ $name }}-error" @enderror
     >
         @if ($kosong !== null)

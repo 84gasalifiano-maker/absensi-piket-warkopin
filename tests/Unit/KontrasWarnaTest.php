@@ -26,9 +26,14 @@ class KontrasWarnaTest extends TestCase
     public static function pasangan(): array
     {
         $hasil = [];
-        $tambah = function (string $depan, array $latar, float $minimal) use (&$hasil) {
+        // Kunci memuat kegunaan, supaya pasangan yang sama untuk kegunaan lain tidak tertimpa.
+        $tambah = function (string $depan, array $latar, float $minimal, string $untuk = 'teks') use (&$hasil) {
             foreach ($latar as $l) {
-                $hasil["{$depan} di atas {$l}"] = [$depan, $l, $minimal];
+                $kunci = "{$depan} di atas {$l} ({$untuk})";
+                if (isset($hasil[$kunci])) {
+                    throw new \LogicException("Pasangan ganda: {$kunci}");
+                }
+                $hasil[$kunci] = [$depan, $l, $minimal];
             }
         };
 
@@ -44,10 +49,13 @@ class KontrasWarnaTest extends TestCase
         $tambah('peringatan', ['peringatan-lembut'], self::TEKS);
         $tambah('bahaya', ['bahaya-lembut'], self::TEKS);
         $tambah('info', ['info-lembut'], self::TEKS);
-        $tambah('teks', ['sukses-lembut', 'peringatan-lembut', 'bahaya-lembut', 'info-lembut'], self::TEKS); // isi pesan
-        $tambah('garis-isian', $latarUmum, self::NON_TEKS);
-        $tambah('fokus', $latarUmum, self::NON_TEKS);
-        $tambah('fokus', ['sukses-lembut', 'peringatan-lembut', 'bahaya-lembut', 'info-lembut'], self::NON_TEKS); // tautan di dalam pesan
+        $tambah('teks', ['sukses-lembut', 'peringatan-lembut', 'bahaya-lembut', 'info-lembut'], self::TEKS, 'isi pesan');
+        $tambah('garis-isian', $latarUmum, self::NON_TEKS, 'bingkai isian & kotak centang');
+        $tambah('bahaya', $latarUmum, self::NON_TEKS, 'bingkai isian yang salah');
+        $tambah('utama', ['permukaan'], self::NON_TEKS, 'kotak centang tercentang');
+        $tambah('pada-utama', ['utama'], self::NON_TEKS, 'tanda centang');
+        $tambah('fokus', $latarUmum, self::NON_TEKS, 'garis fokus');
+        $tambah('fokus', ['sukses-lembut', 'peringatan-lembut', 'bahaya-lembut', 'info-lembut'], self::NON_TEKS, 'garis fokus tautan di dalam pesan');
 
         return $hasil;
     }

@@ -20,7 +20,10 @@
             type="{{ $type }}"
             @unless ($password) value="{{ $isian }}" @endunless
             {{ $attributes->class([
-                'block min-h-11 w-full rounded-xl border border-garis-isian bg-permukaan px-4 py-3 text-base text-teks placeholder:text-teks-lembut focus:border-utama',
+                'block min-h-11 w-full rounded-xl border bg-permukaan px-4 py-3 text-base text-teks placeholder:text-teks-lembut',
+                // Bingkai kolom yang salah ikut warna error (tebal sama, jadi layout tidak bergeser).
+                'border-bahaya focus:border-bahaya' => $errors->has($name),
+                'border-garis-isian focus:border-utama' => ! $errors->has($name),
                 'pr-14' => $password,
             ]) }}
             @error($name) aria-invalid="true" @enderror

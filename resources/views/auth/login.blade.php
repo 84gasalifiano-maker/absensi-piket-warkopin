@@ -24,7 +24,7 @@
 
                 {{-- Default tidak dicentang (SPEC F1). Seluruh baris bisa diketuk (min. 44 px). --}}
                 <label class="flex min-h-11 items-center gap-3">
-                    <input type="checkbox" name="remember" value="1" @checked(old('remember')) class="size-5 accent-utama">
+                    <input type="checkbox" name="remember" value="1" @checked(old('remember')) class="kotak-centang">
                     <span>Ingat saya</span>
                 </label>
 
