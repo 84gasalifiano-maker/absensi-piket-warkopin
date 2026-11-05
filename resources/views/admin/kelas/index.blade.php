@@ -35,6 +35,8 @@
                                     <td class="px-4 py-3 text-right">{{ $kelas->anggota_count }}</td>
                                     <td class="px-4 py-3">
                                         <div class="flex justify-end gap-2">
+                                            <a href="{{ route('jadwal', ['kelas' => $kelas->id]) }}"
+                                               class="rounded-lg border border-gray-300 px-3 py-2 hover:bg-gray-100">Jadwal<span class="sr-only"> kelas {{ $kelas->nama }}</span></a>
                                             <a href="{{ route('admin.kelas.edit', $kelas) }}"
                                                class="rounded-lg border border-gray-300 px-3 py-2 hover:bg-gray-100">Ubah</a>
                                             <form method="POST" action="{{ route('admin.kelas.destroy', $kelas) }}"

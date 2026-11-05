@@ -160,4 +160,46 @@ class RotasiTugasTest extends TestCase
         $this->assertSame(Tugas::Menyapu, $this->tugas(Tugas::Menyapu, '2029-10-29'));
         $this->assertSame(Tugas::Merapikan, $this->tugas(Tugas::Menyapu, '2029-11-05'));
     }
+
+    // --- Hitung mundur dari "tugas minggu ini" (SPEC F2, v0.15) ---
+
+    /** Minggu acuan ke-0 s.d. ke-6 × ketiga pilihan: tugas_awal hasil hitung mundur, lalu maju lagi = pilihan. */
+    public function test_hitung_mundur_kebalikan_rotasi(): void
+    {
+        $mulai = CarbonImmutable::parse(self::MULAI, 'Asia/Jakarta');
+
+        for ($minggu = 0; $minggu <= 6; $minggu++) {
+            $acuan = $mulai->addWeeks($minggu);
+
+            foreach (Tugas::cases() as $pilihan) {
+                $awal = Tugas::awalDari($pilihan, $mulai, $acuan);
+
+                $this->assertSame($pilihan, $awal->padaTanggal($mulai, $acuan), "Minggu ke-{$minggu}, pilih {$pilihan->value}");
+                $this->assertSame($pilihan, $awal->diMingguAcuan($mulai, $acuan));
+            }
+        }
+    }
+
+    public function test_hitung_mundur_contoh_konkret(): void
+    {
+        $mulai = CarbonImmutable::parse(self::MULAI, 'Asia/Jakarta');
+
+        // Minggu ke-0: sama. Minggu ke-1 (9 Nov): pilih merapikan → awal menyapu.
+        $this->assertSame(Tugas::Mengepel, Tugas::awalDari(Tugas::Mengepel, $mulai, $mulai));
+        $this->assertSame(Tugas::Menyapu, Tugas::awalDari(Tugas::Merapikan, $mulai, CarbonImmutable::parse('2026-11-09', 'Asia/Jakarta')));
+        // Minggu ke-2 (16 Nov): pilih mengepel → awal menyapu; pilih menyapu → awal merapikan.
+        $this->assertSame(Tugas::Menyapu, Tugas::awalDari(Tugas::Mengepel, $mulai, CarbonImmutable::parse('2026-11-16', 'Asia/Jakarta')));
+        $this->assertSame(Tugas::Merapikan, Tugas::awalDari(Tugas::Menyapu, $mulai, CarbonImmutable::parse('2026-11-16', 'Asia/Jakarta')));
+    }
+
+    public function test_minggu_acuan_sebelum_tanggal_mulai_disimpan_apa_adanya(): void
+    {
+        $mulai = CarbonImmutable::parse(self::MULAI, 'Asia/Jakarta');
+        $sebelum = CarbonImmutable::parse('2026-10-26', 'Asia/Jakarta');
+
+        foreach (Tugas::cases() as $pilihan) {
+            $this->assertSame($pilihan, Tugas::awalDari($pilihan, $mulai, $sebelum));
+            $this->assertSame($pilihan, $pilihan->diMingguAcuan($mulai, $sebelum));
+        }
+    }
 }

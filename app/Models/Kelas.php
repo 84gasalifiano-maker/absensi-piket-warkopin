@@ -6,6 +6,7 @@ use App\Enums\Role;
 use Database\Factories\KelasFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -65,6 +66,28 @@ class Kelas extends Model
         return ! $this->hasMany(User::class, 'class_id')->exists()
             && ! $this->dutySchedules()->exists()
             && ! $this->submissions()->exists();
+    }
+
+    /**
+     * Kelas yang jadwal piketnya boleh dikelola $user (SPEC F2, v0.15): PJ hanya kelasnya
+     * sendiri, guru hanya kelas yang diwalikannya, admin semua kelas di sekolahnya.
+     * Role lain tidak mendapat kelas apa pun. Satu-satunya tempat aturan ini ditulis:
+     * dipakai halaman jadwal dan cek ulang di dalam transaksi simpan (SimpanJadwal).
+     *
+     * @param  Builder<Kelas>  $query
+     */
+    public function scopeJadwalBolehDikelolaOleh(Builder $query, User $user): void
+    {
+        $query->where('school_id', $user->school_id);
+
+        match ($user->role) {
+            Role::Admin => null,
+            Role::Guru => $query->where('wali_kelas_id', $user->id),
+            Role::PjKebersihan => $user->class_id === null
+                ? $query->whereRaw('1 = 0')
+                : $query->whereKey($user->class_id),
+            default => $query->whereRaw('1 = 0'),
+        };
     }
 
     /** @return BelongsTo<School, $this> */

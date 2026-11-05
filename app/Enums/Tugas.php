@@ -64,6 +64,34 @@ enum Tugas: string
     }
 
     /**
+     * Tugas siswa di minggu acuan (SPEC F2, v0.15), untuk dropdown & ringkasan jadwal.
+     * $this = tugas_awal. Minggu acuan sebelum $mulaiRotasi belum punya "minggu ini",
+     * jadi yang ditampilkan adalah tugas minggu ke-0, yaitu tugas_awal itu sendiri.
+     */
+    public function diMingguAcuan(CarbonInterface $mulaiRotasi, CarbonInterface $mingguAcuan): self
+    {
+        return $this->padaTanggal($mulaiRotasi, $mingguAcuan) ?? $this;
+    }
+
+    /**
+     * Kebalikan diMingguAcuan(): tugas_awal yang membuat siswa mendapat $pilihan di
+     * minggu acuan (SPEC F2, v0.15). Tidak menulis rumus kedua: dicari di antara ketiga
+     * tugas mana yang hasil padaTanggal()-nya sama dengan $pilihan.
+     * Minggu acuan sebelum $mulaiRotasi → $pilihan disimpan apa adanya.
+     */
+    public static function awalDari(self $pilihan, CarbonInterface $mulaiRotasi, CarbonInterface $mingguAcuan): self
+    {
+        foreach (self::cases() as $calon) {
+            if ($calon->diMingguAcuan($mulaiRotasi, $mingguAcuan) === $pilihan) {
+                return $calon;
+            }
+        }
+
+        // Tidak mungkin terjadi: rotasi menggeser semua tugas, jadi selalu ada tepat satu calon.
+        throw new \LogicException('Tugas awal tidak ditemukan.');
+    }
+
+    /**
      * Tanggal kalender di zona waktu aplikasi (Asia/Jakarta, SPEC §6), jam diabaikan.
      * Lewat salinan immutable supaya objek milik pemanggil tidak ikut berubah.
      */

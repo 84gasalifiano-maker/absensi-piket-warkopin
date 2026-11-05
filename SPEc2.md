@@ -35,7 +35,7 @@ Perubahan v0.13 (keputusan pemilik proyek):
 
 Perubahan v0.14 (keputusan pemilik proyek, dari review Langkah 7, untuk Langkah 9): `whereDate` wajib diganti perbandingan tanggal biasa setelah cast tanggal khusus ada (satu cara membandingkan tanggal); waktu submit diambil sekali di awal request; foto diproses di luar transaksi dan dihapus kalau submit ditolak; jam buka/tutup dibaca dari baris sekolah yang dikunci di dalam transaksi (§11 Langkah 9).
 
-Perubahan v0.15 (keputusan pemilik proyek, untuk Langkah 8): keempat keputusan terbuka F2 diputuskan — boleh simpan walau ada siswa belum terjadwal (daftar "Belum terjadwal"); dropdown tugas = tugas di **minggu acuan** (Senin minggu saat form ditampilkan, isian tersembunyi `minggu_acuan`), server menghitung mundur `tugas_awal`; perubahan jadwal langsung berlaku termasuk minggu ini; simpan sekaligus satu kelas tanpa DELETE, siswa di luar form tidak diubah, siswa bukan anggota kelas → seluruh simpan ditolak; kelas yang dibuka per role dan validasi isian (F2). Route `GET /jadwal?kelas={id}` + `POST /jadwal` (§7). Layar kelola jadwal ditulis ulang, tautan "Jadwal" di daftar kelas admin (§8, §8.1). Langkah 8: perbaikan pindah kelas dari review Langkah 4, urutan kunci simpan jadwal (akun → kelas), kriteria selesai tambahan (§11).
+Perubahan v0.15 (keputusan pemilik proyek, untuk Langkah 8): keempat keputusan terbuka F2 diputuskan — boleh simpan walau ada siswa belum terjadwal (daftar "Belum terjadwal"); dropdown tugas = tugas di **minggu acuan** (Senin minggu saat form ditampilkan, isian tersembunyi `minggu_acuan`), server menghitung mundur `tugas_awal`; perubahan jadwal langsung berlaku termasuk minggu ini; simpan sekaligus satu kelas tanpa DELETE, siswa di luar form tidak diubah, siswa bukan anggota kelas → seluruh simpan ditolak; kelas yang dibuka per role dan validasi isian (F2). Route `GET /jadwal?kelas={id}` + `POST /jadwal` (§7). Layar kelola jadwal ditulis ulang, tautan "Jadwal" di daftar kelas admin (§8, §8.1). Langkah 8: perbaikan pindah kelas dari review Langkah 4, urutan kunci simpan jadwal (akun → kelas), kriteria selesai tambahan (§11). Istilah yang terlihat pengguna: "tugas", bukan "tugas awal" (§2); nama kolom `tugas_awal` tetap.
 
 ---
 
@@ -53,8 +53,8 @@ Mencatat siapa yang piket hari ini, apakah piketnya sudah dikerjakan, dan buktin
 | Role | Siapa | Bisa apa |
 |---|---|---|
 | `siswa` | Semua murid | Lihat jadwal & tugas piket sendiri, submit bukti piket, lihat riwayat sendiri |
-| `pj_kebersihan` | Penanggung jawab seksi kebersihan (juga siswa) | Semua hak `siswa` + verifikasi submit di kelasnya + lihat rekap kelasnya + kelola jadwal piket kelasnya (hari + tugas awal) |
-| `guru` | Wali kelas | Verifikasi submit di kelas yang diwalikannya, lihat rekap kelas itu, kelola jadwal piket kelas itu (hari + tugas awal) |
+| `pj_kebersihan` | Penanggung jawab seksi kebersihan (juga siswa) | Semua hak `siswa` + verifikasi submit di kelasnya + lihat rekap kelasnya + kelola jadwal piket kelasnya (hari + tugas) |
+| `guru` | Wali kelas | Verifikasi submit di kelas yang diwalikannya, lihat rekap kelas itu, kelola jadwal piket kelas itu (hari + tugas) |
 | `admin` | Pengelola sekolah | Kelola kelas, akun, pengaturan jam, hari libur, jadwal piket semua kelas; lihat rekap semua kelas |
 
 Aturan:
@@ -463,7 +463,7 @@ Halaman dirender server (Blade), jadi tidak ada state "loading" terpisah; cukup 
 6. Tombol "Simpan" besar, menempel di bawah layar.
 - Kosong (belum ada jadwal): semua siswa tampil sebagai belum terjadwal + petunjuk "Pilih hari dan tugas untuk setiap siswa, lalu tekan Simpan." Kelas tanpa siswa: "Kelas ini belum punya siswa."
 - Halaman pilih kelas (guru > 1 kelas, admin): judul "Jadwal piket", daftar nama kelas sebagai tautan. Admin tanpa kelas: "Belum ada kelas." (Guru tanpa kelas: pesan F2 "Kamu belum menjadi wali kelas mana pun.")
-- Loading: tombol nonaktif + "Menyimpan…" (cegah klik ganda, di atas).
+- Menyimpan: tombol nonaktif + "Menyimpan…" untuk mencegah klik ganda (lihat pembuka §8.1; tidak ada state loading terpisah).
 - Error validasi: pesan di atas daftar, isian tidak hilang.
 - Sukses: "Jadwal tersimpan."
 - Tautan masuk: "Jadwal piket" di halaman sementara `/beranda` (hanya PJ) dan `/verifikasi` (guru), sampai halaman itu dibuat di Langkah 9/10. Admin: tautan "Jadwal" per kelas di daftar kelas (§8).

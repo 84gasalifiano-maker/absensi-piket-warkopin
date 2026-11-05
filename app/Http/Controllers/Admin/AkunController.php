@@ -116,9 +116,15 @@ class AkunController extends Controller
     public function update(SimpanAkunRequest $request, User $akun): RedirectResponse
     {
         TangkapDuplikat::jalankan(fn () => DB::transaction(function () use ($request, $akun) {
-            $this->kunciAkunMasihAda($akun);
+            $terkunci = $this->kunciAkunMasihAda($akun);
             $this->cekUlangBatasPj($request, $akun);
 
+            // Kelas lama dibaca dari baris yang sudah dikunci, bukan dari $akun yang dibaca
+            // sebelum kunci (catatan review Langkah 4, SPEC §11 Langkah 8): kalau admin lain
+            // baru saja memindahkan siswa ini, jadwal di kelas perantara ikut terhapus.
+            // Nilai asli $akun juga diganti data terbaru, supaya simpan di bawah menulis
+            // kelas tujuan walaupun sama dengan nilai lama yang sudah basi.
+            $akun->setRawAttributes($terkunci->getAttributes(), sync: true);
             $kelasLama = $akun->class_id;
 
             $akun->fill($request->dataAkun());
@@ -126,7 +132,17 @@ class AkunController extends Controller
 
             // Pindah kelas: jadwal di kelas lama dihapus (SPEC F2, F9).
             if ($kelasLama !== null && $akun->class_id !== $kelasLama) {
-                $akun->dutySchedules()->where('class_id', $kelasLama)->delete();
+                $jadwalLama = $akun->dutySchedules()->where('class_id', $kelasLama);
+
+                // Konfirmasi dicek ulang dari data terbaru (review Langkah 8). SimpanAkunRequest
+                // memakai data sebelum kunci: kalau admin lain baru saja memindahkan siswa ini
+                // dan ia sudah dijadwalkan di kelas itu, jadwal tersebut tidak boleh terhapus
+                // tanpa centang "Ya, hapus jadwal lama" (F9). Form tampil lagi dengan data terbaru.
+                if (! $request->boolean('konfirmasi_pindah_kelas') && (clone $jadwalLama)->exists()) {
+                    throw ValidationException::withMessages(['konfirmasi_pindah_kelas' => SimpanAkunRequest::PESAN_KONFIRMASI_PINDAH]);
+                }
+
+                $jadwalLama->delete();
             }
 
             $akun->save();
@@ -247,9 +263,9 @@ class AkunController extends Controller
      * Kunci barisnya; kalau sudah tidak ada → 404, bukan pesan "disimpan" palsu.
      * Kunci ini juga membuat hapus akun bersamaan menunggu sampai simpan ini selesai.
      */
-    private function kunciAkunMasihAda(User $akun): void
+    private function kunciAkunMasihAda(User $akun): User
     {
-        abort_unless(User::whereKey($akun->id)->lockForUpdate()->first(), 404);
+        return User::whereKey($akun->id)->lockForUpdate()->first() ?? abort(404);
     }
 
     /**

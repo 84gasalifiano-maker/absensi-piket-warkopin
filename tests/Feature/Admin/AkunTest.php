@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\SimpanAkunRequest;
 use App\Models\School;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Testing\TestResponse;
 
@@ -299,6 +300,89 @@ class AkunTest extends AdminTestCase
     {
         $this->tambahSiswa(['nis' => '١٢٣٤'])->assertSessionHasErrors('nis'); // angka Arab
         $this->tambahSiswa(['nis' => '12-34'])->assertSessionHasErrors('nis');
+    }
+
+    /**
+     * Admin lain memindahkan siswa yang sama tepat setelah akun dibaca, sebelum baris akunnya
+     * dikunci (catatan review Langkah 4, SPEC §11 Langkah 8). Kelas lama harus dibaca dari
+     * baris yang dikunci, supaya jadwal di kelas perantara tidak tertinggal.
+     */
+    private function pindahkanDiamDiamSetelahDibaca(User $siswa, int $kelasPerantara): void
+    {
+        $sudah = false;
+        Event::listen('eloquent.retrieved: '.User::class, function (User $akun) use ($siswa, $kelasPerantara, &$sudah) {
+            if ($sudah || $akun->id !== $siswa->id) {
+                return;
+            }
+            $sudah = true; // hanya bacaan pertama (route binding), sebelum dikunci
+
+            // Seolah admin lain: pindah ke kelas perantara, lalu PJ di sana menjadwalkannya.
+            DB::table('users')->where('id', $siswa->id)->update(['class_id' => $kelasPerantara]);
+            DB::table('duty_schedules')->insert([
+                'class_id' => $kelasPerantara, 'user_id' => $siswa->id, 'hari' => 1, 'tugas_awal' => 'menyapu',
+            ]);
+        });
+    }
+
+    public function test_pindah_kelas_membaca_kelas_lama_dari_baris_yang_dikunci(): void
+    {
+        $siswa = $this->siswa();
+        $perantara = $this->kelasBaru('XI RPL 2');
+        $tujuan = $this->kelasBaru('XI RPL 3');
+        $this->pindahkanDiamDiamSetelahDibaca($siswa, $perantara->id);
+
+        $this->ubah($siswa, ['class_id' => $tujuan->id, 'konfirmasi_pindah_kelas' => '1'])->assertSessionHasNoErrors();
+
+        $this->assertSame($tujuan->id, $siswa->fresh()->class_id);
+        $this->assertSame(0, DB::table('duty_schedules')->where('user_id', $siswa->id)->count(), 'Jadwal di kelas perantara tertinggal');
+    }
+
+    /** Konfirmasi F9 dicek ulang dari data terkunci: form admin ini tidak tahu ada jadwal di kelas perantara. */
+    public function test_jadwal_kelas_perantara_tidak_terhapus_tanpa_centang(): void
+    {
+        $siswa = $this->siswa();
+        $perantara = $this->kelasBaru('XI RPL 2');
+        $tujuan = $this->kelasBaru('XI RPL 3');
+        $this->pindahkanDiamDiamSetelahDibaca($siswa, $perantara->id);
+
+        $this->ubah($siswa, ['class_id' => $tujuan->id, 'nama' => 'Nama Baru'])->assertSessionHasErrors([
+            'konfirmasi_pindah_kelas' => 'Jadwal piket siswa ini di kelas lama akan dihapus. Centang "Ya, hapus jadwal lama" untuk melanjutkan.',
+        ]);
+
+        // Tidak ada yang berubah oleh simpan ini.
+        $this->assertSame($perantara->id, $siswa->fresh()->class_id);
+        $this->assertSame($siswa->nama, $siswa->fresh()->nama);
+        $this->assertSame(1, DB::table('duty_schedules')->where('user_id', $siswa->id)->where('class_id', $perantara->id)->count());
+
+        // Form dibuka lagi: data terbaru (kelas perantara) + kotak centang.
+        $this->actingAs($this->admin)->get("/admin/akun/{$siswa->id}/edit")->assertSee('Ya, hapus jadwal lama');
+    }
+
+    public function test_form_basi_yang_hanya_mengganti_nama_tidak_diam_diam_memindahkan_balik(): void
+    {
+        // Form admin ini masih di kelas awal; admin lain baru memindahkan siswa ke perantara
+        // dan ia sudah dijadwalkan di sana. Tanpa centang → ditolak, perpindahan admin lain tetap.
+        $siswa = $this->siswa();
+        $perantara = $this->kelasBaru('XI RPL 2');
+        $this->pindahkanDiamDiamSetelahDibaca($siswa, $perantara->id);
+
+        $this->ubah($siswa, ['nama' => 'Nama Diperbaiki'])->assertSessionHasErrors('konfirmasi_pindah_kelas');
+        $this->assertSame($perantara->id, $siswa->fresh()->class_id);
+        $this->assertSame(1, DB::table('duty_schedules')->where('user_id', $siswa->id)->count());
+    }
+
+    public function test_form_basi_dengan_centang_menulis_kelas_dari_form(): void
+    {
+        // Yang terakhir menyimpan yang berlaku, termasuk kelas yang sama dengan nilai basi di
+        // form: nilai asli model disegarkan dari baris terkunci, jadi class_id tetap ditulis.
+        $siswa = $this->siswa();
+        $perantara = $this->kelasBaru('XI RPL 2');
+        $this->pindahkanDiamDiamSetelahDibaca($siswa, $perantara->id);
+
+        $this->ubah($siswa, ['nama' => 'Nama Diperbaiki', 'konfirmasi_pindah_kelas' => '1'])->assertSessionHasNoErrors();
+        $this->assertSame($this->kelas->id, $siswa->fresh()->class_id);
+        $this->assertSame('Nama Diperbaiki', $siswa->fresh()->nama);
+        $this->assertSame(0, DB::table('duty_schedules')->where('user_id', $siswa->id)->count());
     }
 
     public function test_ubah_tanpa_pindah_kelas_tidak_menyentuh_jadwal(): void

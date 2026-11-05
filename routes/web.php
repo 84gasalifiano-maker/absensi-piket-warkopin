@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\KelasController;
 use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\Auth\GantiPasswordController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\JadwalController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +43,13 @@ Route::middleware('auth')->group(function () {
     Route::view('/verifikasi', 'sementara', ['judul' => 'Antrean verifikasi'])
         ->middleware('role:pj_kebersihan,guru')
         ->name('verifikasi');
+
+    // Kelola jadwal piket (SPEC F2, §7, v0.15). Kelas yang boleh dibuka dicek di controller
+    // (+ di dalam transaksi saat simpan); tidak ada DELETE.
+    Route::middleware('role:pj_kebersihan,guru,admin')->group(function () {
+        Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal');
+        Route::post('/jadwal', [JadwalController::class, 'store'])->name('jadwal.store');
+    });
 
     // Halaman admin (SPEC F9, §7). Semua /admin/* hanya untuk admin.
     Route::middleware('role:admin')->group(function () {
