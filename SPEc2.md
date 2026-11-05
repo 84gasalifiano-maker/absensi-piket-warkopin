@@ -37,7 +37,11 @@ Perubahan v0.14 (keputusan pemilik proyek, dari review Langkah 7, untuk Langkah 
 
 Perubahan v0.15 (keputusan pemilik proyek, untuk Langkah 8): keempat keputusan terbuka F2 diputuskan — boleh simpan walau ada siswa belum terjadwal (daftar "Belum terjadwal"); dropdown tugas = tugas di **minggu acuan** (Senin minggu saat form ditampilkan, isian tersembunyi `minggu_acuan`), server menghitung mundur `tugas_awal`; perubahan jadwal langsung berlaku termasuk minggu ini; simpan sekaligus satu kelas tanpa DELETE, siswa di luar form tidak diubah, siswa bukan anggota kelas → seluruh simpan ditolak; kelas yang dibuka per role dan validasi isian (F2). Route `GET /jadwal?kelas={id}` + `POST /jadwal` (§7). Layar kelola jadwal ditulis ulang, tautan "Jadwal" di daftar kelas admin (§8, §8.1). Langkah 8: perbaikan pindah kelas dari review Langkah 4, urutan kunci simpan jadwal (akun → kelas), kriteria selesai tambahan (§11). Istilah yang terlihat pengguna: "tugas", bukan "tugas awal" (§2); nama kolom `tugas_awal` tetap.
 
-Perubahan v0.16 (keputusan pemilik proyek): Langkah 5c "Fondasi desain" (token warna terang/gelap, komponen bersama, dark mode untuk semua halaman yang ada; dikerjakan setelah Langkah 8, sebelum 9) dengan tiga keputusan terbuka (§11); baris desain §8 menjadi subbagian "Desain & Dark mode" (§8); Langkah 10b "Deploy ke hosting untuk pengujian" (setelah Langkah 10, sebelum 11) dengan tiga keputusan terbuka (§11); rujukan `docs/tes-manual-tertunda.md` untuk tes manual yang dikerjakan penguji lain (§11).
+Perubahan v0.16 (keputusan pemilik proyek):
+- Langkah 5c "Fondasi desain" (token warna terang/gelap, komponen bersama, dark mode untuk semua halaman yang ada; dikerjakan setelah Langkah 8, sebelum 9). Diputuskan: dark mode mengikuti pengaturan HP/OS, tanpa tombol mode; varian `dark:` bawaan Tailwind v4 tanpa `@custom-variant`, nilai gelap sekali di token; tanpa referensi tampilan, disetujui lewat contoh halaman login dulu; teks pesan di aplikasi dan di tes tidak boleh berubah (§11).
+- Baris desain §8 menjadi subbagian "Desain & Dark mode" (§8).
+- Langkah 10b "Deploy ke hosting untuk pengujian" (setelah Langkah 10, sebelum 11). Diputuskan: shared hosting dengan akses SSH (penyedia ditentukan nanti); admin pertama dibuat lewat perintah artisan sekali pakai yang membuat sekolah + admin dalam satu transaksi, meminta password tersembunyi dua kali, dan menolak berjalan kalau sudah ada admin (nama perintah dan teksnya ditulis di SPEC sebelum dikerjakan); subdomain untuk pengujian; database bersih sebelum Langkah 13, dengan data uji dihapus hanya setelah persetujuan eksplisit pemilik proyek (§11).
+- Rujukan `docs/tes-manual-tertunda.md` untuk tes manual yang dikerjakan penguji lain (§11).
 
 ---
 
@@ -441,7 +445,7 @@ Pesan error ke user dalam bahasa Indonesia, mis. "Kamu tidak terjadwal piket har
 **Desain & Dark mode** (v0.16)
 - Prinsip yang tetap berlaku: mobile-first, bahasa Indonesia, tombol besar. Halaman admin boleh lebih padat (dipakai di laptop).
 - Token warna (mode terang & gelap), komponen bersama (tombol, kartu, input/dropdown, pesan), dan dark mode diatur di **Langkah 5c** (§11). Halaman yang dibuat sesudahnya memakai token dan komponen itu.
-- Cara dark mode aktif (ikut HP / tombol / keduanya) dan cara mengaktifkannya di Tailwind masih **[KEPUTUSAN TERBUKA]** di Langkah 5c.
+- Dark mode **mengikuti pengaturan HP/OS** (`prefers-color-scheme`), tanpa tombol mode; di Tailwind memakai varian `dark:` bawaan v4 (diputuskan v0.16, Langkah 5c).
 
 ### 8.1 Detail layar yang berubah di v0.5
 
@@ -637,36 +641,23 @@ Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset 
      - Fokus keyboard terlihat (`focus-visible`) di semua tombol, tautan, dan isian, dengan garis fokus yang kontrasnya minimal 3:1 terhadap latar, di kedua mode.
      - Halaman yang dibuat setelah 5c (Langkah 9 dst.) wajib memakai token dan komponen ini.
    - **Batasan:**
-     - Tidak menambah fitur, route, atau kolom, dan tidak mengubah teks atau perilaku yang sudah ada di SPEC; hanya tampilan. Satu-satunya pengecualian: tombol mode gelap, kalau keputusan (1) memilih (b) atau (c).
+     - Tidak menambah fitur, route, atau kolom, dan tidak mengubah teks atau perilaku yang sudah ada di SPEC; hanya tampilan. Tidak ada tombol mode gelap.
+     - **Teks pesan tidak boleh diubah**, baik di aplikasi maupun di tes. Tes lama yang memeriksa kelas CSS boleh disesuaikan; tes yang memeriksa teks pesan tidak.
      - Tidak ada aset eksternal dari CDN (font, ikon, CSS, skrip). Font bawaan proyek (Instrument Sans, `vite.config.js`) tetap seperti sekarang.
-   - **[KEPUTUSAN TERBUKA] (1) Cara dark mode aktif:**
-     (a) mengikuti pengaturan HP/OS (`prefers-color-scheme`). Tanpa JavaScript, tanpa kedip warna, tanpa tombol baru. Siswa tidak bisa memilih di aplikasi; di komputer sekolah, mode ikut pengaturan komputer itu;
-     (b) tombol manual (bawaan terang), pilihan disimpan di browser (localStorage). Butuh **skrip kecil di `<head>`** yang memasang mode sebelum halaman digambar; tanpa skrip itu, halaman berkedip terang sesaat saat dimuat. Tombol harus ada di semua halaman, termasuk login yang tidak punya header. Pengaturan HP diabaikan;
-     (c) keduanya: bawaan mengikuti HP + tombol untuk mengganti, pilihan disimpan di browser (localStorage, **tanpa kolom database**). Skrip `<head>` sama seperti (b). Perlu diputuskan juga: tombol dua posisi (terang/gelap) atau tiga posisi (ikut HP/terang/gelap).
-     Untuk (b)/(c): teks tombol dan label pembaca layarnya ditulis di SPEC dulu; tanpa JavaScript tampil mode bawaan; di perangkat bersama, pilihan terbawa ke pengguna berikutnya (bukan data pribadi).
-     Rekomendasi: (a). Paling sedikit kode, tidak ada kedip, dan tidak menambah fitur, jadi sesuai batasan "hanya tampilan". Tombol bisa ditambahkan nanti tanpa mengubah token.
-   - **[KEPUTUSAN TERBUKA] (2) Versi Tailwind dan cara mengaktifkan dark mode.** Terpasang sekarang: **Tailwind CSS v4** (`package.json`: `tailwindcss` dan `@tailwindcss/vite` `^4.0.0`; terkunci 4.3.3 di `package-lock.json`). Konfigurasinya gaya v4: di CSS (`@import 'tailwindcss'` + `@theme` di `resources/css/app.css`), **tanpa** `tailwind.config.js`, jadi pengaturan `darkMode: 'class'` gaya v3 tidak berlaku. Opsi:
-     (a) varian `dark:` bawaan v4, berbasis media query `prefers-color-scheme`; tidak perlu konfigurasi. Hanya cocok untuk (1a);
-     (b) custom variant berbasis class di `<html>`: `@custom-variant dark (&:where(.dark, .dark *));` di `app.css`, dan skrip `<head>` memasang/melepas class `dark`. Untuk (1b)/(1c);
-     (c) custom variant berbasis atribut di `<html>`, mis. `data-tema="gelap"`. Sama seperti (b), tapi lebih mudah kalau tombol tiga posisi (1c).
-     Apa pun pilihannya, nilai mode gelap ditulis sekali di token (variabel CSS yang berganti per mode), jadi view hampir tidak perlu kelas `dark:`.
-     Rekomendasi: mengikuti (1): (1a) → (a); (1b)/(1c) → (b), atau (c) kalau tombol tiga posisi.
-   - **[KEPUTUSAN TERBUKA] (3) Referensi tampilan:**
-     (a) pemilik proyek memberi referensi (screenshot/aplikasi contoh);
-     (b) tanpa referensi: dibuat dari prinsip di atas, lalu disetujui lewat contoh satu halaman dulu.
-     Rekomendasi: (b), dengan halaman login sebagai contoh (dilihat semua role; berisi tombol, isian, centang, dan pesan). Halaman lain dikerjakan setelah contoh disetujui. Kalau memilih (a), tetap disetujui lewat contoh satu halaman.
-   - **Pembagian sesi** (usulan, satu sesi per bagian, tes hijau di akhir tiap sesi):
-     1. token + `color-scheme` + komponen + layout + `x-field`/`x-select` + halaman login (contoh untuk disetujui);
-     2. ganti password, halaman sementara, 404, jadwal;
+   - **(1) Cara dark mode aktif — diputuskan (a) (v0.16):** mengikuti pengaturan HP/OS (`prefers-color-scheme`). **Tidak ada tombol mode** dan tidak ada JavaScript untuk mode, jadi tidak ada kedip warna dan tidak ada pilihan yang disimpan. Di komputer sekolah, mode ikut pengaturan komputer itu. Alasan: paling sedikit kode dan tidak menambah fitur.
+   - **(2) Cara mengaktifkan dark mode di Tailwind — diputuskan (a) (v0.16):** varian `dark:` bawaan **Tailwind CSS v4** (terpasang: `^4.0.0` di `package.json`, terkunci 4.3.3; konfigurasi di CSS lewat `@theme` di `resources/css/app.css`, tanpa `tailwind.config.js`). Varian ini berbasis media query `prefers-color-scheme`; **tanpa `@custom-variant`**. Nilai mode gelap tetap ditulis **sekali di token** (variabel CSS yang nilainya diganti di blok `@media (prefers-color-scheme: dark)` di `app.css`), jadi view hampir tidak perlu kelas `dark:`.
+   - **(3) Referensi tampilan — diputuskan (b) (v0.16):** tanpa referensi; dibuat dari prinsip di atas. Pemilik proyek menyetujui lewat **contoh halaman login dulu** (sesi 1). Halaman lain dikerjakan setelah contoh itu disetujui.
+   - **Pembagian sesi** (v0.16, satu sesi per bagian, tes hijau di akhir tiap sesi):
+     1. token + `color-scheme` + komponen + layout + `x-field`/`x-select` + halaman login (contoh untuk disetujui pemilik proyek);
+     2. setelah contoh disetujui: ganti password, halaman sementara, 404, jadwal;
      3. semua halaman admin + pemeriksaan grep dan kontras + butir tes manual.
    - **Selesai kalau:**
-     - semua halaman yang ada dirender tanpa error di kedua mode: feature test membuka setiap halaman dengan role yang berhak (200; halaman 404 → 404), dan setiap halaman memuat pengaturan mode gelap dari layout/komponen (mis. `color-scheme`, skrip tema, atau kelas varian gelap, sesuai keputusan (2));
+     - semua halaman yang ada dirender tanpa error di kedua mode: feature test membuka setiap halaman dengan role yang berhak (200; halaman 404 → 404), dan setiap halaman memakai layout bersama yang memuat pengaturan mode gelap (mis. `<meta name="color-scheme" content="light dark">`). Tampilan kedua mode dicek di browser dengan emulasi `prefers-color-scheme` (DevTools);
      - tidak ada warna yang ditulis langsung di view, selain lewat token/komponen. Dicek dengan grep di `resources/views`, mis. pola `(bg|text|border|ring|outline|divide|from|via|to|fill|stroke|placeholder|accent|caret|decoration|shadow)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|black|white)\b`, ditambah warna arbitrer (`-[#`, `rgb(`) dan `style="…color…"` → tidak ada hasil. Pengecualian hanya yang tercatat di sini beserta alasannya (saat ini: tidak ada). `currentColor` di SVG dan `transparent` bukan pelanggaran;
      - pasangan warna teks/latar di token memenuhi kontras AA di kedua mode: tabel kontras di sini (pasangan, rasio mode terang, rasio mode gelap) **atau** tes otomatis yang menghitung rasio dari nilai token;
      - tombol utama dan dropdown di halaman siswa/PJ (ganti password, halaman sementara, jadwal) tingginya minimal 44 px (mis. kelas `min-h-11` di komponen, dicek tes);
-     - seluruh tes yang ada tetap hijau dan teks pesan tidak berubah. Tes lama yang memeriksa kelas CSS boleh disesuaikan; tes yang memeriksa teks tidak;
-     - kalau (1) memakai tombol: pilihan bertahan setelah reload, dan tidak ada kedip warna saat halaman dimuat;
-     - tes manual di HP (kedua mode, tombol mudah diketuk, pemilih tanggal/jam terbaca) masuk `docs/tes-manual-tertunda.md`.
+     - seluruh tes yang ada tetap hijau, dan teks pesan di aplikasi maupun di tes tidak berubah (hanya tes yang memeriksa kelas CSS yang boleh disesuaikan);
+     - tes manual di HP (mode terang dan gelap lewat pengaturan HP, tombol mudah diketuk, pemilih tanggal/jam terbaca) masuk `docs/tes-manual-tertunda.md`.
 9. F3 + F4 Submit dengan batas waktu & keterlambatan (+ `submissions.tugas` diisi server, aturan tanggal libur dan tanggal sebelum `tanggal_mulai_rotasi`).
    Selesai kalau: `submissions.tugas` sesuai rotasi walau form dikirim dengan nilai tugas lain; perilaku di tanggal libur sesuai keputusan F3; submit sebelum `tanggal_mulai_rotasi` ditolak.
    Selesai kalau juga (v0.14): tidak ada lagi `whereDate` di kode, dan tes penuh hijau di SQLite dan MySQL sementara; submit yang ditolak di dalam transaksi tidak meninggalkan file foto di storage; status `terlambat` dan `created_at` memakai waktu awal request, jadi berkas yang sampai sebelum jam tutup tetap tepat waktu walau kompresi foto melewati jam tutup.
@@ -682,7 +673,7 @@ Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset 
    Teknis: tombol submit yang dinonaktifkan dari server (mis. sebelum jam buka, F4) wajib diberi atribut `data-tetap-nonaktif`, supaya tidak diaktifkan lagi oleh skrip pencegah klik ganda (`resources/js/app.js`).
 10. F5 Verifikasi (kartu menampilkan tugas)
 
-    **10b. Deploy ke hosting untuk pengujian** (v0.16). **Urutan pengerjaan: setelah Langkah 10, sebelum Langkah 11.** Nomornya 10b dengan alasan yang sama seperti 5c. Langkah ini terutama pekerjaan server, bukan kode; kalau ternyata butuh kode (mis. keputusan (2)), tulis di SPEC dulu.
+    **10b. Deploy ke hosting untuk pengujian** (v0.16). **Urutan pengerjaan: setelah Langkah 10, sebelum Langkah 11.** Nomornya 10b dengan alasan yang sama seperti 5c. Langkah ini terutama pekerjaan server, bukan kode. Satu-satunya kode baru adalah perintah artisan admin pertama (2), dikerjakan sebagai sesi tersendiri sebelum deploy; kode lain yang ternyata dibutuhkan ditulis di SPEC dulu.
     - **Isi:**
       - Ikuti "Daftar periksa deploy (hosting)" di §10.
       - Document root domain mengarah ke folder `public/`, bukan folder proyek, supaya `.env` dan `storage` tidak bisa dibuka dari browser.
@@ -693,22 +684,20 @@ Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset 
       - **Data uji palsu saja**: tidak ada data atau foto siswa asli sebelum Langkah 12 (penghapusan foto mingguan) selesai (§9, UU PDP). Foto uji mis. foto lantai atau sapu, bukan wajah.
       - `APP_DEBUG=false` dicek dengan membuka halaman error, mis. `GET /logout` (route itu hanya POST, jadi muncul 405): yang tampil hanya halaman singkat, tanpa jejak kode.
       - Kalau saat deploy ditemukan langkah yang belum ada di daftar periksa §10 (mis. `npm run build`, `php artisan migrate --force`), usulkan tambahannya ke §10 di versi SPEC berikutnya.
-      - Catatan: cara membersihkan data uji sebelum Langkah 13 (kelas sungguhan) belum diatur. Jangan `migrate:fresh` tanpa bertanya (CLAUDe2.md).
-    - **[KEPUTUSAN TERBUKA] (1) Penyedia hosting.** Syarat minimal dari §10: PHP ≥ 8.3, MySQL ≥ 8.0.19 / MariaDB ≥ 10.2, cron, HTTPS.
-      (a) shared hosting: murah; cron dan HTTPS biasanya tersedia di panel. Perlu dicek: versi MySQL (sebagian masih 5.7), akses SSH (untuk `composer` dan `php artisan`), document root bisa diarahkan ke `public/`, `max_execution_time`, dan bahasa pesan error MySQL (§10);
-      (b) VPS: kendali penuh, tapi pemasangan dan keamanan server (update, firewall, backup) diurus sendiri.
-      Rekomendasi: (a) yang punya akses SSH dan memenuhi syarat. Aplikasinya kecil, dan VPS menambah pekerjaan keamanan server.
-    - **[KEPUTUSAN TERBUKA] (2) Cara membuat admin pertama di produksi.** Jangan memakai akun contoh seeder (seeder data contoh tidak dijalankan di produksi). Produksi juga belum punya baris `schools` (tidak ada halaman tambah sekolah), jadi cara yang dipilih harus membuat sekolahnya juga.
-      (a) perintah artisan sekali pakai: meminta nama sekolah, nama admin, dan email; membuat password acak (aturan password awal F9) yang tampil **sekali** di terminal; `harus_ganti_password = true`; ditolak kalau sekolah/admin sudah ada;
-      (b) seeder khusus produksi yang membaca nama sekolah, nama, dan email admin dari `.env`; password tetap acak dan tampil sekali (password tidak ditulis di `.env`);
-      (c) manual lewat `php artisan tinker`: tanpa kode baru, tapi rawan salah ketik, melewati validasi, dan tidak bisa dites.
-      (a) dan (b) berarti **kode baru**: harus diputuskan dan ditulis di SPEC dulu (nama perintah, isian, perilaku kalau sudah ada), lalu dikerjakan sebagai sesi tersendiri dengan tes, sebelum deploy.
-      Rekomendasi: (a). Bisa dites, password tidak tertinggal di file server, dan memakai aturan password F9 yang sudah ada.
-    - **[KEPUTUSAN TERBUKA] (3) Domain sendiri vs subdomain untuk pengujian:**
-      (a) domain sendiri (biaya per tahun);
-      (b) subdomain, mis. dari penyedia hosting, atau dari domain sekolah (perlu izin pengelola domain sekolah).
-      Kalau domain diganti nanti: semua user login ulang (cookie sesi terikat domain) dan HTTPS dipasang lagi.
-      Rekomendasi: (b) untuk pengujian; domain akhir diputuskan sebelum Langkah 13.
+    - **(1) Penyedia hosting — diputuskan (a) (v0.16):** shared hosting **dengan akses SSH** (untuk `composer` dan `php artisan`). Syarat minimal dari §10: PHP ≥ 8.3, MySQL ≥ 8.0.19 / MariaDB ≥ 10.2, cron, HTTPS. Saat memilih, cek juga: document root bisa diarahkan ke `public/`, `max_execution_time`, dan bahasa pesan error MySQL (§10). Alasan: aplikasinya kecil, dan VPS menambah pekerjaan keamanan server.
+      Catatan: penyedianya ditentukan nanti.
+    - **(2) Cara membuat admin pertama di produksi — diputuskan: perintah artisan sekali pakai (v0.16).** Akun contoh seeder tidak dipakai (seeder data contoh tidak dijalankan di produksi). Produksi belum punya baris `schools` (tidak ada halaman tambah sekolah), jadi perintah ini membuat sekolahnya juga. Perilaku:
+      - meminta nama sekolah, nama admin, dan email;
+      - **meminta password lewat isian tersembunyi** (tidak tampil saat diketik), diketik dua kali (konfirmasi), minimal 8 karakter (sama dengan F1);
+      - membuat baris `schools` (jam default F4) + admin pertama di sekolah itu, dengan `harus_ganti_password = true`;
+      - **menolak berjalan kalau sudah ada admin** (di sekolah mana pun), tanpa mengubah apa pun;
+      - semuanya dalam **satu transaksi** (tersimpan semua atau tidak sama sekali).
+      Nama perintah, teks pertanyaan, dan teks pesannya **belum ditulis**: ditulis di SPEC dulu, lalu dikerjakan sebagai sesi tersendiri dengan tes, sebelum deploy.
+    - **(3) Domain — diputuskan (b) (v0.16):** subdomain untuk pengujian (mis. dari penyedia hosting, atau dari domain sekolah dengan izin pengelolanya). Domain akhir diputuskan sebelum Langkah 13. Kalau domain diganti nanti, semua user login ulang (cookie sesi terikat domain) dan HTTPS dipasang lagi.
+    - **(4) Data uji — diputuskan (v0.16):**
+      - sebelum Langkah 13 (uji coba dengan kelas sungguhan) dipakai **database bersih**;
+      - di hosting uji, **semua data uji dihapus, termasuk berkas di storage** (mis. foto uji), **hanya setelah persetujuan eksplisit pemilik proyek**. Jangan `migrate:fresh` tanpa bertanya (CLAUDe2.md);
+      - setelah itu admin dibuat dengan perintah artisan (2), lalu akun asli diimport (F9).
     - **Selesai kalau:**
       - halaman login terbuka lewat `https://`, dan `http://` dialihkan ke `https://`; cookie sesi bertanda `Secure`;
       - semua butir daftar periksa §10 dicentang;
@@ -716,7 +705,8 @@ Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset 
       - cron terbukti jalan (mis. file log cron bertambah tiap menit);
       - waktu import 50 akun tercatat di langkah ini;
       - halaman error tidak menampilkan detail teknis;
-      - tidak ada akun contoh seeder di produksi (login dengan akun contoh gagal);
+      - tidak ada akun contoh seeder di produksi (login dengan akun contoh gagal), dan admin produksi dibuat lewat perintah artisan (2);
+      - perintah artisan (2) yang dijalankan kedua kali ditolak tanpa mengubah apa pun;
       - tidak ada data siswa asli;
       - tes manual di hosting yang dikerjakan penguji lain masuk `docs/tes-manual-tertunda.md`.
 11. F6 Rekap mingguan + CSV (Senin–Jumat, tanggal libur dan tanggal sebelum `tanggal_mulai_rotasi` dikecualikan).
