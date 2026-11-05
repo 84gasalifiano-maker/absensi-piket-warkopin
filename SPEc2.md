@@ -3,7 +3,7 @@
 > Dokumen ini adalah sumber kebenaran tunggal. Semua kode harus sesuai dengan dokumen ini.
 > Kalau ada perubahan fitur, ubah dokumen ini DULU, baru kode.
 
-Status: DRAFT v0.15
+Status: DRAFT v0.16
 Bagian bertanda **[KEPUTUSAN TERBUKA]** belum final — putuskan sebelum fitur terkait dikerjakan.
 
 Perubahan v0.5 (keputusan pemilik proyek): piket hanya Senin–Jumat; tugas piket per siswa (menyapu / merapikan meja & kursi / mengepel) yang berputar tiap minggu; hari libur sekolah (F8).
@@ -36,6 +36,8 @@ Perubahan v0.13 (keputusan pemilik proyek):
 Perubahan v0.14 (keputusan pemilik proyek, dari review Langkah 7, untuk Langkah 9): `whereDate` wajib diganti perbandingan tanggal biasa setelah cast tanggal khusus ada (satu cara membandingkan tanggal); waktu submit diambil sekali di awal request; foto diproses di luar transaksi dan dihapus kalau submit ditolak; jam buka/tutup dibaca dari baris sekolah yang dikunci di dalam transaksi (§11 Langkah 9).
 
 Perubahan v0.15 (keputusan pemilik proyek, untuk Langkah 8): keempat keputusan terbuka F2 diputuskan — boleh simpan walau ada siswa belum terjadwal (daftar "Belum terjadwal"); dropdown tugas = tugas di **minggu acuan** (Senin minggu saat form ditampilkan, isian tersembunyi `minggu_acuan`), server menghitung mundur `tugas_awal`; perubahan jadwal langsung berlaku termasuk minggu ini; simpan sekaligus satu kelas tanpa DELETE, siswa di luar form tidak diubah, siswa bukan anggota kelas → seluruh simpan ditolak; kelas yang dibuka per role dan validasi isian (F2). Route `GET /jadwal?kelas={id}` + `POST /jadwal` (§7). Layar kelola jadwal ditulis ulang, tautan "Jadwal" di daftar kelas admin (§8, §8.1). Langkah 8: perbaikan pindah kelas dari review Langkah 4, urutan kunci simpan jadwal (akun → kelas), kriteria selesai tambahan (§11). Istilah yang terlihat pengguna: "tugas", bukan "tugas awal" (§2); nama kolom `tugas_awal` tetap.
+
+Perubahan v0.16 (keputusan pemilik proyek): Langkah 5c "Fondasi desain" (token warna terang/gelap, komponen bersama, dark mode untuk semua halaman yang ada; dikerjakan setelah Langkah 8, sebelum 9) dengan tiga keputusan terbuka (§11); baris desain §8 menjadi subbagian "Desain & Dark mode" (§8); Langkah 10b "Deploy ke hosting untuk pengujian" (setelah Langkah 10, sebelum 11) dengan tiga keputusan terbuka (§11); rujukan `docs/tes-manual-tertunda.md` untuk tes manual yang dikerjakan penguji lain (§11).
 
 ---
 
@@ -436,7 +438,10 @@ Pesan error ke user dalam bahasa Indonesia, mis. "Kamu tidak terjadwal piket har
 | Hari libur | admin | form tambah (tanggal, keterangan) + daftar hari libur + tombol hapus |
 | Pengaturan | admin | form jam buka/tutup pagi & siang (F4, §8.1, v0.13) |
 
-Desain: mobile-first, bahasa Indonesia, tombol besar. Halaman admin boleh lebih padat (dipakai di laptop).
+**Desain & Dark mode** (v0.16)
+- Prinsip yang tetap berlaku: mobile-first, bahasa Indonesia, tombol besar. Halaman admin boleh lebih padat (dipakai di laptop).
+- Token warna (mode terang & gelap), komponen bersama (tombol, kartu, input/dropdown, pesan), dan dark mode diatur di **Langkah 5c** (§11). Halaman yang dibuat sesudahnya memakai token dan komponen itu.
+- Cara dark mode aktif (ikut HP / tombol / keduanya) dan cara mengaktifkannya di Tailwind masih **[KEPUTUSAN TERBUKA]** di Langkah 5c.
 
 ### 8.1 Detail layar yang berubah di v0.5
 
@@ -559,6 +564,9 @@ Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset 
 - Setelah deploy pertama dengan `SESSION_ENCRYPT=true`, semua user perlu login ulang sekali.
 
 ## 11. Urutan Pengerjaan
+
+**Tes manual tertunda** (v0.16): butir tes manual yang dikerjakan penguji lain dicatat di `docs/tes-manual-tertunda.md`. Isinya hal yang tidak bisa diuji otomatis: file yang dibuka di aplikasi lain (mis. CSV di Excel), tampilan dan perangkat HP, hosting dan data asli. Format tiap butir: kotak centang + nama langkah (mis. "Langkah 8: halaman jadwal di HP"), **Apa yang dites**, **Langkah** singkat (maks 3), **Hasil yang diharapkan**. Setiap langkah yang punya tes manual seperti itu menambah butirnya ke file tersebut.
+
 1. Setup proyek Laravel + koneksi MySQL + migrasi semua tabel + seeder data contoh (1 sekolah, 2 kelas, akun tiap role)
 2. F1 Login + redirect per role + middleware role + ganti password
 3. Migrasi perubahan v0.5 — **migration baru**, jangan ubah migration Langkah 1 yang sudah dijalankan: CHECK `hari` 1–5, `duty_schedules.tugas_awal` + ganti UNIQUE jadi (class_id, user_id), `classes.tanggal_mulai_rotasi`, `submissions.tugas`, tabel `hari_libur`; sesuaikan seeder.
@@ -614,6 +622,51 @@ Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset 
    - Alasan kunci akun tidak dihindari: menambah baris jadwal baru otomatis mengunci baca baris akun itu (pemeriksaan foreign key InnoDB). Kalau kunci itu baru terjadi di akhir (setelah kunci kelas), urutannya kelas→akun, berlawanan dengan pindah kelas (akun→kelas tujuan) sehingga bisa deadlock. Dengan mengunci akun lebih dulu, urutannya sama dengan pindah kelas: **akun → kelas**. Kunci baca bersama tidak saling menghalangi antar simpan jadwal; hanya pindah kelas, hapus akun, dan reset password akun yang sama yang menunggu sebentar.
    - Akibatnya untuk pindah kelas bersamaan: kalau pindah kelas selesai duluan, simpan jadwal melihat siswa itu bukan anggota → ditolak; kalau simpan jadwal duluan, pindah kelas menunggu lalu menghapus jadwal kelas lama siswa itu. Tidak ada jadwal yang tertinggal.
    Selesai kalau juga (v0.15): `siswa` → 403; PJ hanya kelasnya, guru hanya kelas walinya, admin hanya sekolahnya (selain itu 404); simpan hanya lewat form dengan CSRF; boleh simpan dengan siswa belum terjadwal dan daftar "Belum terjadwal" tampil; dropdown tugas = tugas minggu acuan dan `tugas_awal` disimpan hasil hitung mundur; **form tanpa perubahan yang disimpan di minggu berbeda dari minggu acuan → `tugas_awal` semua siswa tidak berubah** (dengan uji mutasi); form yang ditampilkan sebelum `tanggal_mulai_rotasi` lalu disimpan sesudahnya → pilihan disimpan apa adanya; `minggu_acuan` bukan Senin / di masa depan / lebih dari 4 minggu lalu ditolak; siswa yang tidak ada di form tidak berubah; siswa yang dikirim tapi bukan anggota kelas → seluruh simpan ditolak; teks layar sesuai §8.1 termasuk "Perubahan langsung berlaku, termasuk minggu ini."; pindah kelas membaca kelas lama dari baris akun yang dikunci.
+
+   **5c. Fondasi desain** (v0.16). **Urutan pengerjaan: setelah Langkah 8, sebelum Langkah 9.** Nomornya 5c, bukan 9, supaya nomor langkah lain tidak berubah, karena nomor langkah dirujuk di dokumen ini dan di komentar kode. Langkah ini hanya mengubah tampilan.
+   - **Isi:**
+     - **Token warna** didefinisikan di satu tempat (`resources/css/app.css`), masing-masing dengan nilai mode terang dan mode gelap: warna dasar (latar halaman), permukaan/kartu, teks (biasa + lembut, mis. teks bantuan), garis, utama/aksi (+ warna teks di atasnya), sukses, peringatan, bahaya. Nama token bahasa Indonesia, mis. `dasar`, `permukaan`, `teks`, `teks-lembut`, `garis`, `utama`, `sukses`, `peringatan`, `bahaya`.
+     - Kontrol bawaan browser (pemilih tanggal/jam, dropdown) ikut mode gelap lewat properti CSS `color-scheme`.
+     - **Komponen Blade bersama:**
+       - tombol: utama, sekunder, bahaya. Keadaan nonaktif dan "Menyimpan…" tetap memakai skrip pencegah klik ganda yang ada (`resources/js/app.js`, atribut `data-teks-proses` dan `data-tetap-nonaktif`); teks proses tiap tombol tidak berubah;
+       - kartu;
+       - input/dropdown: memakai ulang `x-field` dan `x-select` yang sudah ada. Hanya warnanya yang diubah; perilakunya tetap (teks 16 px supaya HP tidak auto-zoom, tombol tampilkan/sembunyikan password, isian lama setelah validasi gagal, atribut `aria-*`);
+       - pesan: sukses, error, info (termasuk pesan `status` di layout dan `x-admin.pesan-error`).
+     - **Dark mode untuk semua halaman yang sudah ada:** login, ganti password, halaman sementara (`/beranda`, `/verifikasi`), halaman 404, semua halaman admin (dashboard, kelas, akun termasuk kotak password sekali tampil, hari libur, pengaturan), dan jadwal (pilih kelas + kelola jadwal).
+     - Tampilan modern yang cocok untuk siswa SMA, mobile-first, tombol besar (target sentuh minimal 44×44 px), kontras terbaca **WCAG AA** di kedua mode: teks biasa minimal 4.5:1, teks besar minimal 3:1.
+     - Fokus keyboard terlihat (`focus-visible`) di semua tombol, tautan, dan isian, dengan garis fokus yang kontrasnya minimal 3:1 terhadap latar, di kedua mode.
+     - Halaman yang dibuat setelah 5c (Langkah 9 dst.) wajib memakai token dan komponen ini.
+   - **Batasan:**
+     - Tidak menambah fitur, route, atau kolom, dan tidak mengubah teks atau perilaku yang sudah ada di SPEC; hanya tampilan. Satu-satunya pengecualian: tombol mode gelap, kalau keputusan (1) memilih (b) atau (c).
+     - Tidak ada aset eksternal dari CDN (font, ikon, CSS, skrip). Font bawaan proyek (Instrument Sans, `vite.config.js`) tetap seperti sekarang.
+   - **[KEPUTUSAN TERBUKA] (1) Cara dark mode aktif:**
+     (a) mengikuti pengaturan HP/OS (`prefers-color-scheme`). Tanpa JavaScript, tanpa kedip warna, tanpa tombol baru. Siswa tidak bisa memilih di aplikasi; di komputer sekolah, mode ikut pengaturan komputer itu;
+     (b) tombol manual (bawaan terang), pilihan disimpan di browser (localStorage). Butuh **skrip kecil di `<head>`** yang memasang mode sebelum halaman digambar; tanpa skrip itu, halaman berkedip terang sesaat saat dimuat. Tombol harus ada di semua halaman, termasuk login yang tidak punya header. Pengaturan HP diabaikan;
+     (c) keduanya: bawaan mengikuti HP + tombol untuk mengganti, pilihan disimpan di browser (localStorage, **tanpa kolom database**). Skrip `<head>` sama seperti (b). Perlu diputuskan juga: tombol dua posisi (terang/gelap) atau tiga posisi (ikut HP/terang/gelap).
+     Untuk (b)/(c): teks tombol dan label pembaca layarnya ditulis di SPEC dulu; tanpa JavaScript tampil mode bawaan; di perangkat bersama, pilihan terbawa ke pengguna berikutnya (bukan data pribadi).
+     Rekomendasi: (a). Paling sedikit kode, tidak ada kedip, dan tidak menambah fitur, jadi sesuai batasan "hanya tampilan". Tombol bisa ditambahkan nanti tanpa mengubah token.
+   - **[KEPUTUSAN TERBUKA] (2) Versi Tailwind dan cara mengaktifkan dark mode.** Terpasang sekarang: **Tailwind CSS v4** (`package.json`: `tailwindcss` dan `@tailwindcss/vite` `^4.0.0`; terkunci 4.3.3 di `package-lock.json`). Konfigurasinya gaya v4: di CSS (`@import 'tailwindcss'` + `@theme` di `resources/css/app.css`), **tanpa** `tailwind.config.js`, jadi pengaturan `darkMode: 'class'` gaya v3 tidak berlaku. Opsi:
+     (a) varian `dark:` bawaan v4, berbasis media query `prefers-color-scheme`; tidak perlu konfigurasi. Hanya cocok untuk (1a);
+     (b) custom variant berbasis class di `<html>`: `@custom-variant dark (&:where(.dark, .dark *));` di `app.css`, dan skrip `<head>` memasang/melepas class `dark`. Untuk (1b)/(1c);
+     (c) custom variant berbasis atribut di `<html>`, mis. `data-tema="gelap"`. Sama seperti (b), tapi lebih mudah kalau tombol tiga posisi (1c).
+     Apa pun pilihannya, nilai mode gelap ditulis sekali di token (variabel CSS yang berganti per mode), jadi view hampir tidak perlu kelas `dark:`.
+     Rekomendasi: mengikuti (1): (1a) → (a); (1b)/(1c) → (b), atau (c) kalau tombol tiga posisi.
+   - **[KEPUTUSAN TERBUKA] (3) Referensi tampilan:**
+     (a) pemilik proyek memberi referensi (screenshot/aplikasi contoh);
+     (b) tanpa referensi: dibuat dari prinsip di atas, lalu disetujui lewat contoh satu halaman dulu.
+     Rekomendasi: (b), dengan halaman login sebagai contoh (dilihat semua role; berisi tombol, isian, centang, dan pesan). Halaman lain dikerjakan setelah contoh disetujui. Kalau memilih (a), tetap disetujui lewat contoh satu halaman.
+   - **Pembagian sesi** (usulan, satu sesi per bagian, tes hijau di akhir tiap sesi):
+     1. token + `color-scheme` + komponen + layout + `x-field`/`x-select` + halaman login (contoh untuk disetujui);
+     2. ganti password, halaman sementara, 404, jadwal;
+     3. semua halaman admin + pemeriksaan grep dan kontras + butir tes manual.
+   - **Selesai kalau:**
+     - semua halaman yang ada dirender tanpa error di kedua mode: feature test membuka setiap halaman dengan role yang berhak (200; halaman 404 → 404), dan setiap halaman memuat pengaturan mode gelap dari layout/komponen (mis. `color-scheme`, skrip tema, atau kelas varian gelap, sesuai keputusan (2));
+     - tidak ada warna yang ditulis langsung di view, selain lewat token/komponen. Dicek dengan grep di `resources/views`, mis. pola `(bg|text|border|ring|outline|divide|from|via|to|fill|stroke|placeholder|accent|caret|decoration|shadow)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|black|white)\b`, ditambah warna arbitrer (`-[#`, `rgb(`) dan `style="…color…"` → tidak ada hasil. Pengecualian hanya yang tercatat di sini beserta alasannya (saat ini: tidak ada). `currentColor` di SVG dan `transparent` bukan pelanggaran;
+     - pasangan warna teks/latar di token memenuhi kontras AA di kedua mode: tabel kontras di sini (pasangan, rasio mode terang, rasio mode gelap) **atau** tes otomatis yang menghitung rasio dari nilai token;
+     - tombol utama dan dropdown di halaman siswa/PJ (ganti password, halaman sementara, jadwal) tingginya minimal 44 px (mis. kelas `min-h-11` di komponen, dicek tes);
+     - seluruh tes yang ada tetap hijau dan teks pesan tidak berubah. Tes lama yang memeriksa kelas CSS boleh disesuaikan; tes yang memeriksa teks tidak;
+     - kalau (1) memakai tombol: pilihan bertahan setelah reload, dan tidak ada kedip warna saat halaman dimuat;
+     - tes manual di HP (kedua mode, tombol mudah diketuk, pemilih tanggal/jam terbaca) masuk `docs/tes-manual-tertunda.md`.
 9. F3 + F4 Submit dengan batas waktu & keterlambatan (+ `submissions.tugas` diisi server, aturan tanggal libur dan tanggal sebelum `tanggal_mulai_rotasi`).
    Selesai kalau: `submissions.tugas` sesuai rotasi walau form dikirim dengan nilai tugas lain; perilaku di tanggal libur sesuai keputusan F3; submit sebelum `tanggal_mulai_rotasi` ditolak.
    Selesai kalau juga (v0.14): tidak ada lagi `whereDate` di kode, dan tes penuh hijau di SQLite dan MySQL sementara; submit yang ditolak di dalam transaksi tidak meninggalkan file foto di storage; status `terlambat` dan `created_at` memakai waktu awal request, jadi berkas yang sampai sebelum jam tutup tetap tepat waktu walau kompresi foto melewati jam tutup.
@@ -628,6 +681,44 @@ Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset 
    4. **Kalau transaksi ditolak atau gagal** (mis. hari libur baru ditambahkan, sudah ada submit aktif, akun baru saja dihapus, atau error database), **file foto yang sudah tersimpan di langkah 2 wajib dihapus**, supaya tidak ada file yatim di storage. Berlaku juga kalau penolakan berupa pesan validasi. Ada tes untuk tiap jenis penolakan: file tidak tertinggal, dan tidak ada baris yang tersimpan.
    Teknis: tombol submit yang dinonaktifkan dari server (mis. sebelum jam buka, F4) wajib diberi atribut `data-tetap-nonaktif`, supaya tidak diaktifkan lagi oleh skrip pencegah klik ganda (`resources/js/app.js`).
 10. F5 Verifikasi (kartu menampilkan tugas)
+
+    **10b. Deploy ke hosting untuk pengujian** (v0.16). **Urutan pengerjaan: setelah Langkah 10, sebelum Langkah 11.** Nomornya 10b dengan alasan yang sama seperti 5c. Langkah ini terutama pekerjaan server, bukan kode; kalau ternyata butuh kode (mis. keputusan (2)), tulis di SPEC dulu.
+    - **Isi:**
+      - Ikuti "Daftar periksa deploy (hosting)" di §10.
+      - Document root domain mengarah ke folder `public/`, bukan folder proyek, supaya `.env` dan `storage` tidak bisa dibuka dari browser.
+      - Aplikasi dibuka lewat **HTTPS**: HTTP dialihkan ke HTTPS (pengaturan hosting/`.htaccess`), `APP_URL` memakai `https://`, dan cookie sesi aman (`SESSION_SECURE_COOKIE=true`).
+      - **Cron** untuk Laravel Scheduler terpasang (`php artisan schedule:run` tiap menit) dan terbukti jalan. Sebelum Langkah 12 belum ada tugas terjadwal, jadi buktinya dari output cron yang diarahkan ke file log (berisi "No scheduled commands are ready to run." tiap menit), tanpa kode baru.
+      - **Ukur waktu import 50 akun** (file CSV data palsu) di server, karena batas 50 di F9 dihitung dari ± 0,4 detik per akun di lokal. Bandingkan dengan `max_execution_time` PHP server. Kalau mendekati batas, usulkan perubahan batas (berlaku juga untuk reset massal, yang memakai batas 50 yang sama, F9/§8.2).
+        Hasil (diisi saat Langkah 10b): waktu import 50 akun: … detik; `max_execution_time` server: … detik.
+      - **Data uji palsu saja**: tidak ada data atau foto siswa asli sebelum Langkah 12 (penghapusan foto mingguan) selesai (§9, UU PDP). Foto uji mis. foto lantai atau sapu, bukan wajah.
+      - `APP_DEBUG=false` dicek dengan membuka halaman error, mis. `GET /logout` (route itu hanya POST, jadi muncul 405): yang tampil hanya halaman singkat, tanpa jejak kode.
+      - Kalau saat deploy ditemukan langkah yang belum ada di daftar periksa §10 (mis. `npm run build`, `php artisan migrate --force`), usulkan tambahannya ke §10 di versi SPEC berikutnya.
+      - Catatan: cara membersihkan data uji sebelum Langkah 13 (kelas sungguhan) belum diatur. Jangan `migrate:fresh` tanpa bertanya (CLAUDe2.md).
+    - **[KEPUTUSAN TERBUKA] (1) Penyedia hosting.** Syarat minimal dari §10: PHP ≥ 8.3, MySQL ≥ 8.0.19 / MariaDB ≥ 10.2, cron, HTTPS.
+      (a) shared hosting: murah; cron dan HTTPS biasanya tersedia di panel. Perlu dicek: versi MySQL (sebagian masih 5.7), akses SSH (untuk `composer` dan `php artisan`), document root bisa diarahkan ke `public/`, `max_execution_time`, dan bahasa pesan error MySQL (§10);
+      (b) VPS: kendali penuh, tapi pemasangan dan keamanan server (update, firewall, backup) diurus sendiri.
+      Rekomendasi: (a) yang punya akses SSH dan memenuhi syarat. Aplikasinya kecil, dan VPS menambah pekerjaan keamanan server.
+    - **[KEPUTUSAN TERBUKA] (2) Cara membuat admin pertama di produksi.** Jangan memakai akun contoh seeder (seeder data contoh tidak dijalankan di produksi). Produksi juga belum punya baris `schools` (tidak ada halaman tambah sekolah), jadi cara yang dipilih harus membuat sekolahnya juga.
+      (a) perintah artisan sekali pakai: meminta nama sekolah, nama admin, dan email; membuat password acak (aturan password awal F9) yang tampil **sekali** di terminal; `harus_ganti_password = true`; ditolak kalau sekolah/admin sudah ada;
+      (b) seeder khusus produksi yang membaca nama sekolah, nama, dan email admin dari `.env`; password tetap acak dan tampil sekali (password tidak ditulis di `.env`);
+      (c) manual lewat `php artisan tinker`: tanpa kode baru, tapi rawan salah ketik, melewati validasi, dan tidak bisa dites.
+      (a) dan (b) berarti **kode baru**: harus diputuskan dan ditulis di SPEC dulu (nama perintah, isian, perilaku kalau sudah ada), lalu dikerjakan sebagai sesi tersendiri dengan tes, sebelum deploy.
+      Rekomendasi: (a). Bisa dites, password tidak tertinggal di file server, dan memakai aturan password F9 yang sudah ada.
+    - **[KEPUTUSAN TERBUKA] (3) Domain sendiri vs subdomain untuk pengujian:**
+      (a) domain sendiri (biaya per tahun);
+      (b) subdomain, mis. dari penyedia hosting, atau dari domain sekolah (perlu izin pengelola domain sekolah).
+      Kalau domain diganti nanti: semua user login ulang (cookie sesi terikat domain) dan HTTPS dipasang lagi.
+      Rekomendasi: (b) untuk pengujian; domain akhir diputuskan sebelum Langkah 13.
+    - **Selesai kalau:**
+      - halaman login terbuka lewat `https://`, dan `http://` dialihkan ke `https://`; cookie sesi bertanda `Secure`;
+      - semua butir daftar periksa §10 dicentang;
+      - membuka `/.env` dari browser tidak menampilkan isi file;
+      - cron terbukti jalan (mis. file log cron bertambah tiap menit);
+      - waktu import 50 akun tercatat di langkah ini;
+      - halaman error tidak menampilkan detail teknis;
+      - tidak ada akun contoh seeder di produksi (login dengan akun contoh gagal);
+      - tidak ada data siswa asli;
+      - tes manual di hosting yang dikerjakan penguji lain masuk `docs/tes-manual-tertunda.md`.
 11. F6 Rekap mingguan + CSV (Senin–Jumat, tanggal libur dan tanggal sebelum `tanggal_mulai_rotasi` dikecualikan).
     Selesai kalau: siswa terjadwal Rabu, Rabu libur, tanpa submit → terjadwal 0 dan tidak piket 0 untuk minggu itu; minggu berikutnya tugasnya tetap bergeser satu langkah; minggu sebelum `tanggal_mulai_rotasi` → terjadwal 0 dan tidak piket 0.
     Catatan dari Langkah 5: pelindung rumus Excel (nilai yang diawali `=`, `+`, `-`, `@`, tab, atau enter diberi `'` di depan) sekarang ada di `AkunController::csvPassword`. Pindahkan ke tempat bersama (mis. `App\Support`) dan pakai juga untuk ekspor rekap, karena nama siswa dari import bisa diawali `=`. Jangan ditulis dua kali. Saat dipindah, tambahkan juga `\n` (baris baru): versi sekarang hanya menangkap tab dan `\r`, cukup untuk nama hasil import (sel di-trim), tapi belum untuk data lain seperti alasan tolak.
