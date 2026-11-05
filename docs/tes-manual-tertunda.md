@@ -68,4 +68,22 @@ Centang butir yang sudah dites. Kalau hasilnya tidak sesuai, catat di bawah buti
 - Mode halaman ikut pengaturan HP, tanpa tombol mode. Di mode gelap latar gelap dan teks terang; kontrol bawaan browser (kotak centang, isian) ikut bertema gelap.
 - Semua teks terbaca jelas di kedua mode, termasuk teks bantuan dan pesan error (coba password salah).
 - Kolom isian, tombol mata, kotak "Ingat saya", dan tombol **Masuk** mudah diketuk jari. Layar tidak membesar sendiri saat kolom diketuk.
-- Setelah masuk, halaman berikutnya tetap terang (sementara, sampai sesi 5c berikutnya).
+- Setelah masuk, halaman siswa/PJ/guru (beranda, verifikasi, ganti password, jadwal) ikut mode HP; halaman admin tetap terang (sementara, sampai sesi 3 Langkah 5c).
+
+---
+
+## [ ] Langkah 5c sesi 2: halaman siswa/PJ/guru di HP, mode terang dan gelap
+
+**Apa yang dites:** ganti password, beranda/verifikasi sementara, 404, pilih kelas, dan kelola jadwal terbaca dan mudah dipakai di HP asli. Termasuk pilihan dropdown bawaan HP dan bilah Simpan saat keyboard muncul (keduanya tidak bisa ditangkap screenshot otomatis).
+
+**Langkah:**
+1. Di HP dengan mode gelap, login sebagai PJ, buka **Jadwal piket**. Ketuk dropdown hari dan tugas beberapa siswa, termasuk di baris yang berada tepat di atas bilah Simpan. Gulir sampai bawah, lalu tekan **Simpan**.
+2. Masih di mode gelap: login dengan akun baru yang wajib ganti password, lalu login sebagai guru (buka **Verifikasi** → **Jadwal piket**), lalu sebagai admin (buka **Kelas** → **Jadwal**, lalu ketuk menu **Dashboard**). Buka juga alamat yang tidak ada (mis. `/abc`) untuk halaman 404.
+3. Ganti pengaturan HP ke mode terang, lalu ulangi langkah 1.
+
+**Hasil yang diharapkan:**
+- Daftar pilihan dropdown bawaan HP terbaca di kedua mode: pilihan hari tanpa Sabtu, dan tugas Menyapu / Merapikan meja & kursi / Mengepel.
+- Bilah **Simpan** selalu terlihat di bawah layar, tidak menutupi dropdown yang sedang diketuk, dan saat digulir sampai bawah tidak menutupi baris terakhir atau daftar "Belum terjadwal".
+- Semua teks, tombol, dan kotak pesan terbaca di kedua mode. Tidak ada halaman yang bisa digeser ke samping.
+- Ganti password wajib (akun baru): kotak "Kamu wajib mengganti password…" terbaca di mode gelap, tanpa kolom password lama.
+- Admin: halaman pilih kelas dan kelola jadwal ikut gelap, termasuk menu admin. Setelah pindah ke **Dashboard**, halaman admin tampil terang dan menunya tetap terbaca (sementara, sampai sesi 3).

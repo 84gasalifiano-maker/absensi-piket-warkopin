@@ -12,8 +12,9 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
- * SPEC §8 "Desain & Dark mode", §11 Langkah 5c (v0.16), sesi 1: token warna, komponen
- * bersama, layout, x-field/x-select, dan contoh halaman login.
+ * SPEC §8 "Desain & Dark mode", §11 Langkah 5c (v0.16–v0.17): token warna, komponen bersama,
+ * layout, x-field/x-select, contoh login (sesi 1), dan pemeriksaan warna mentah untuk semua
+ * view yang sudah memakai token (sesi 1–2). Tampilan halaman sesi 2: HalamanSesi2Test.
  */
 class FondasiDesainTest extends TestCase
 {
@@ -31,6 +32,13 @@ class FondasiDesainTest extends TestCase
         'components/tombol.blade.php',
         'components/kartu.blade.php',
         'components/pesan.blade.php',
+        // Sesi 2
+        'auth/ganti-password.blade.php',
+        'sementara.blade.php',
+        'errors/404.blade.php',
+        'jadwal/pilih-kelas.blade.php',
+        'jadwal/index.blade.php',
+        'components/admin/nav.blade.php', // dipakai halaman jadwal saat dibuka admin (pilihan A)
     ];
 
     /** Pola warna Tailwind mentah dari SPEC 5c "Selesai kalau". */
@@ -78,12 +86,19 @@ class FondasiDesainTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/<html[^>]*data-hanya-terang/', $halaman->getContent());
     }
 
-    /** Sementara (5c sesi 1–2): halaman yang belum memakai token tetap terang. */
+    /** Sementara (5c sesi 1–2, mekanisme 2a): halaman admin yang belum memakai token tetap terang. */
     public function test_halaman_yang_belum_diubah_tetap_terang(): void
     {
         $admin = $this->buatUser(Role::Admin, ['school_id' => School::factory()->create()->id]);
 
-        foreach ([route('admin'), route('ganti-password')] as $url) {
+        $sekolah = $admin->school;
+        $kelas = $sekolah->kelas()->create(['nama' => 'XI RPL 1', 'tanggal_mulai_rotasi' => '2026-10-26']);
+        $halamanAdmin = [
+            route('admin'), route('admin.kelas.index'), route('admin.kelas.edit', $kelas),
+            route('admin.akun.index'), route('admin.akun.create'), route('admin.akun.edit', $admin),
+            route('admin.hari-libur.index'), route('admin.pengaturan.edit'),
+        ];
+        foreach ($halamanAdmin as $url) {
             $halaman = $this->actingAs($admin)->get($url)->assertOk();
 
             $halaman->assertSee('<meta name="color-scheme" content="light">', false);

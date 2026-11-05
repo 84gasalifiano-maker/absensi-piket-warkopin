@@ -1,4 +1,5 @@
 {{-- Menu admin (SPEC F9). Sejak Langkah 7 semua halaman admin sudah ada, jadi tidak ada lagi menu "segera". --}}
+{{-- Warna dari token (Langkah 5c sesi 2): dipakai juga di halaman jadwal yang sudah ikut mode gelap. --}}
 @php
     $menu = [
         ['Dashboard', route('admin'), request()->routeIs('admin')],
@@ -14,9 +15,9 @@
     @foreach ($menu as [$teks, $url, $aktif])
         <a href="{{ $url }}" @if ($aktif) aria-current="page" @endif
            @class([
-               'rounded-lg px-4 py-2 font-medium',
-               'bg-blue-600 text-white' => $aktif,
-               'border border-gray-300 bg-white hover:bg-gray-100' => ! $aktif,
+               'inline-flex min-h-11 items-center rounded-xl px-4 py-2 font-medium transition-colors',
+               'bg-utama text-pada-utama' => $aktif,
+               'border border-garis-isian bg-permukaan text-teks hover:bg-permukaan-lembut' => ! $aktif,
            ])>{{ $teks }}</a>
     @endforeach
 </nav>

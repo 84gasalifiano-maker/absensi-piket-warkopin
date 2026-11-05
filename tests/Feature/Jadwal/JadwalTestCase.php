@@ -119,7 +119,7 @@ abstract class JadwalTestCase extends AdminTestCase
     {
         $sel = $this->xpath($response)->query("//*[@{$atribut}='{$nilai}']")->item(0);
 
-        return str_contains($sel->getAttribute('class'), 'bg-red-100');
+        return str_contains($sel->getAttribute('class'), 'bg-bahaya-lembut'); // token sorotan (Langkah 5c sesi 2)
     }
 
     /**

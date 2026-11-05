@@ -74,6 +74,16 @@
     }
 }
 
+/*
+ * Halaman dengan bilah yang menempel di bawah layar (mis. tombol Simpan kelola jadwal):
+ * isian yang difokuskan (mis. pindah dengan Tab) digulir sampai di atas bilah itu, tidak
+ * tertutup (dicek di Chrome). Perilaku saat keyboard/pemilih HP asli muncul dicek manual
+ * (docs/tes-manual-tertunda.md). 7rem > tinggi bilah (tombol 44 px + jarak).
+ */
+html:has([data-bilah-menempel]) {
+    scroll-padding-bottom: 7rem;
+}
+
 /* Fokus keyboard selalu terlihat di tombol, tautan, dan isian (SPEC 5c), di kedua mode. */
 @layer base {
     :focus-visible {
