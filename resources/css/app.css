@@ -3,9 +3,83 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
-@theme {
+/*
+ * Token warna (SPEC §8 "Desain & Dark mode", §11 Langkah 5c). Satu-satunya tempat warna
+ * ditulis. Di sini nilai mode terang; nilai mode gelap ada di blok @media di bawah.
+ * Tailwind membuat kelas dari setiap token, mis. bg-permukaan, text-teks-lembut, border-garis.
+ * Pasangan teks/latar dicek kontras WCAG AA oleh tests/Unit/KontrasWarnaTest.php.
+ */
+@theme static {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-dasar: #f4f6fb; /* latar halaman */
+    --color-permukaan: #ffffff; /* kartu, header, isian */
+    --color-permukaan-lembut: #e9edf5; /* hover, kepala tabel */
+    --color-teks: #111827;
+    --color-teks-lembut: #4b5563; /* teks bantuan */
+    --color-garis: #d7dce6; /* pemisah dan bingkai kartu (hiasan) */
+    --color-garis-isian: #6b7280; /* bingkai isian & tombol sekunder: harus terlihat (3:1) */
+    --color-utama: #4f46e5; /* aksi utama, tautan */
+    --color-utama-hover: #4338ca;
+    --color-pada-utama: #ffffff; /* teks di atas warna utama */
+    --color-fokus: #4f46e5; /* garis fokus keyboard */
+    --color-sukses: #166534;
+    --color-sukses-lembut: #dcfce7;
+    --color-peringatan: #854d0e;
+    --color-peringatan-lembut: #fef3c7;
+    --color-bahaya: #b91c1c;
+    --color-bahaya-hover: #991b1b;
+    --color-pada-bahaya: #ffffff;
+    --color-bahaya-lembut: #fee2e2;
+    --color-info: #3730a3;
+    --color-info-lembut: #e0e7ff;
+}
+
+:root {
+    color-scheme: light;
+}
+
+/*
+ * Mode gelap mengikuti pengaturan HP/OS (diputuskan v0.16): tanpa tombol, tanpa JavaScript.
+ * Sementara (Langkah 5c sesi 1–2): hanya halaman yang sudah memakai token yang ikut gelap.
+ * Halaman lain diberi data-hanya-terang oleh layout, supaya warna lamanya tidak bercampur.
+ * Atribut itu dihapus di sesi terakhir 5c, setelah semua halaman memakai token.
+ */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-hanya-terang]) {
+        color-scheme: dark;
+
+        --color-dasar: #0b1020;
+        --color-permukaan: #161c2e;
+        --color-permukaan-lembut: #222b42;
+        --color-teks: #e8ebf2;
+        --color-teks-lembut: #a7b0c3;
+        --color-garis: #2c3650;
+        --color-garis-isian: #8590a8;
+        --color-utama: #8b93fb;
+        --color-utama-hover: #a8aefc;
+        --color-pada-utama: #0b1020;
+        --color-fokus: #a8aefc;
+        --color-sukses: #86efac;
+        --color-sukses-lembut: #10301f;
+        --color-peringatan: #fcd34d;
+        --color-peringatan-lembut: #33270a;
+        --color-bahaya: #fca5a5;
+        --color-bahaya-hover: #fecaca;
+        --color-pada-bahaya: #0b1020;
+        --color-bahaya-lembut: #3a1518;
+        --color-info: #c7cbfe;
+        --color-info-lembut: #1f2350;
+    }
+}
+
+/* Fokus keyboard selalu terlihat di tombol, tautan, dan isian (SPEC 5c), di kedua mode. */
+@layer base {
+    :focus-visible {
+        outline: 2px solid var(--color-fokus);
+        outline-offset: 2px;
+    }
 }
 
 /* Sembunyikan tombol "lihat password" bawaan Edge; kita punya tombol sendiri. */

@@ -7,11 +7,11 @@
 @php($terpilih = is_scalar($terpilih) ? (string) $terpilih : '')
 
 <div>
-    <label for="{{ $name }}" class="mb-1 block font-medium">{{ $label }}</label>
+    <label for="{{ $name }}" class="mb-1 block font-medium text-teks">{{ $label }}</label>
     <select
         id="{{ $name }}"
         name="{{ $name }}"
-        {{ $attributes->class('block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30') }}
+        {{ $attributes->class('block min-h-11 w-full rounded-xl border border-garis-isian bg-permukaan px-4 py-3 text-base text-teks focus:border-utama') }}
         @error($name) aria-invalid="true" aria-describedby="{{ $name }}-error" @enderror
     >
         @if ($kosong !== null)
@@ -22,6 +22,6 @@
         @endforeach
     </select>
     @error($name)
-        <p id="{{ $name }}-error" class="mt-1 text-sm text-red-700">{{ $message }}</p>
+        <p id="{{ $name }}-error" class="mt-1 text-sm font-medium text-bahaya">{{ $message }}</p>
     @enderror
 </div>

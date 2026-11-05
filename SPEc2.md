@@ -3,7 +3,7 @@
 > Dokumen ini adalah sumber kebenaran tunggal. Semua kode harus sesuai dengan dokumen ini.
 > Kalau ada perubahan fitur, ubah dokumen ini DULU, baru kode.
 
-Status: DRAFT v0.16
+Status: DRAFT v0.17
 Bagian bertanda **[KEPUTUSAN TERBUKA]** belum final — putuskan sebelum fitur terkait dikerjakan.
 
 Perubahan v0.5 (keputusan pemilik proyek): piket hanya Senin–Jumat; tugas piket per siswa (menyapu / merapikan meja & kursi / mengepel) yang berputar tiap minggu; hari libur sekolah (F8).
@@ -42,6 +42,8 @@ Perubahan v0.16 (keputusan pemilik proyek):
 - Baris desain §8 menjadi subbagian "Desain & Dark mode" (§8).
 - Langkah 10b "Deploy ke hosting untuk pengujian" (setelah Langkah 10, sebelum 11). Diputuskan: shared hosting dengan akses SSH (penyedia ditentukan nanti); admin pertama dibuat lewat perintah artisan sekali pakai yang membuat sekolah + admin dalam satu transaksi, meminta password tersembunyi dua kali, dan menolak berjalan kalau sudah ada admin (nama perintah dan teksnya ditulis di SPEC sebelum dikerjakan); subdomain untuk pengujian; database bersih sebelum Langkah 13, dengan data uji dihapus hanya setelah persetujuan eksplisit pemilik proyek (§11).
 - Rujukan `docs/tes-manual-tertunda.md` untuk tes manual yang dikerjakan penguji lain (§11).
+
+Perubahan v0.17 (keputusan pemilik proyek, dari sesi 1 Langkah 5c): mekanisme transisi dark mode selama 5c belum selesai — prop `modeGelap` di layout bersama, atribut `data-hanya-terang` + meta `color-scheme` `light` untuk halaman yang belum memakai token, nilai gelap token di `:root:not([data-hanya-terang])`, view yang sudah memakai token tidak memakai kelas `dark:` langsung; semua itu wajib dihapus di sesi 3. Keputusan (2) tetap berlaku. Isi tiap sesi diperjelas (sesi 2 menunggu persetujuan contoh login) dan syarat "Selesai kalau" sesi 3 ditambah (§11 Langkah 5c).
 
 ---
 
@@ -646,18 +648,30 @@ Urutan, state, dan teks di bawah ini sudah diputuskan (v0.11). Teks pesan reset 
      - Tidak ada aset eksternal dari CDN (font, ikon, CSS, skrip). Font bawaan proyek (Instrument Sans, `vite.config.js`) tetap seperti sekarang.
    - **(1) Cara dark mode aktif — diputuskan (a) (v0.16):** mengikuti pengaturan HP/OS (`prefers-color-scheme`). **Tidak ada tombol mode** dan tidak ada JavaScript untuk mode, jadi tidak ada kedip warna dan tidak ada pilihan yang disimpan. Di komputer sekolah, mode ikut pengaturan komputer itu. Alasan: paling sedikit kode dan tidak menambah fitur.
    - **(2) Cara mengaktifkan dark mode di Tailwind — diputuskan (a) (v0.16):** varian `dark:` bawaan **Tailwind CSS v4** (terpasang: `^4.0.0` di `package.json`, terkunci 4.3.3; konfigurasi di CSS lewat `@theme` di `resources/css/app.css`, tanpa `tailwind.config.js`). Varian ini berbasis media query `prefers-color-scheme`; **tanpa `@custom-variant`**. Nilai mode gelap tetap ditulis **sekali di token** (variabel CSS yang nilainya diganti di blok `@media (prefers-color-scheme: dark)` di `app.css`), jadi view hampir tidak perlu kelas `dark:`.
+   - **(2a) Mekanisme transisi dark mode — diputuskan (v0.17):** berlaku hanya selama 5c belum selesai (sesi 1–2).
+     - Layout bersama (`resources/views/components/layouts/app.blade.php`) punya prop `modeGelap`. Halaman yang sudah memakai token mengirim `mode-gelap`. Halaman lain mendapat atribut `data-hanya-terang` di `<html>` dan `<meta name="color-scheme" content="light">`, jadi tetap terang.
+     - Di `resources/css/app.css`, nilai gelap token ditulis di `@media (prefers-color-scheme: dark) { :root:not([data-hanya-terang]) { … } }`.
+     - Alasan: layout, `x-field`, dan `x-select` dipakai semua halaman. Tanpa mekanisme ini, di mode gelap teks dari layout yang terang akan tampil di atas kartu putih halaman lama yang belum diubah.
+     - Selama transisi, view yang sudah memakai token **tidak boleh memakai kelas `dark:` langsung**. Kelas `dark:` bawaan memakai media query biasa, jadi ikut gelap juga di halaman `data-hanya-terang`. Nilai gelap hanya lewat token.
+     - Keputusan (2) tetap berlaku: varian `dark:` bawaan Tailwind, tanpa `@custom-variant`.
+     - **Wajib dihapus di sesi terakhir 5c (sesi 3):** prop `modeGelap`, atribut `data-hanya-terang`, dan pengecualian `:not([data-hanya-terang])` di `app.css`. Setelah itu semua halaman memakai `<meta name="color-scheme" content="light dark">`.
+     - Ini bukan fitur: tidak ada route, kolom, JavaScript, atau tombol baru.
    - **(3) Referensi tampilan — diputuskan (b) (v0.16):** tanpa referensi; dibuat dari prinsip di atas. Pemilik proyek menyetujui lewat **contoh halaman login dulu** (sesi 1). Halaman lain dikerjakan setelah contoh itu disetujui.
-   - **Pembagian sesi** (v0.16, satu sesi per bagian, tes hijau di akhir tiap sesi):
-     1. token + `color-scheme` + komponen + layout + `x-field`/`x-select` + halaman login (contoh untuk disetujui pemilik proyek);
-     2. setelah contoh disetujui: ganti password, halaman sementara, 404, jadwal;
-     3. semua halaman admin + pemeriksaan grep dan kontras + butir tes manual.
+   - **Pembagian sesi** (v0.16, diperjelas v0.17; satu sesi per bagian, tes hijau di akhir tiap sesi):
+     1. **Sesi 1:** token + `color-scheme` + komponen bersama + layout (termasuk mekanisme transisi (2a)) + `x-field`/`x-select` + halaman login sebagai contoh. **Contoh login menunggu persetujuan pemilik proyek; sesi 2 baru dimulai setelah disetujui.**
+     2. **Sesi 2:** ganti password, halaman sementara (`/beranda`, `/verifikasi`), halaman 404, jadwal (pilih kelas + kelola jadwal).
+     3. **Sesi 3 (terakhir):** semua halaman admin + penghapusan mekanisme transisi (2a) + pemeriksaan grep dan kontras + butir tes manual.
    - **Selesai kalau:**
      - semua halaman yang ada dirender tanpa error di kedua mode: feature test membuka setiap halaman dengan role yang berhak (200; halaman 404 → 404), dan setiap halaman memakai layout bersama yang memuat pengaturan mode gelap (mis. `<meta name="color-scheme" content="light dark">`). Tampilan kedua mode dicek di browser dengan emulasi `prefers-color-scheme` (DevTools);
      - tidak ada warna yang ditulis langsung di view, selain lewat token/komponen. Dicek dengan grep di `resources/views`, mis. pola `(bg|text|border|ring|outline|divide|from|via|to|fill|stroke|placeholder|accent|caret|decoration|shadow)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|black|white)\b`, ditambah warna arbitrer (`-[#`, `rgb(`) dan `style="…color…"` → tidak ada hasil. Pengecualian hanya yang tercatat di sini beserta alasannya (saat ini: tidak ada). `currentColor` di SVG dan `transparent` bukan pelanggaran;
      - pasangan warna teks/latar di token memenuhi kontras AA di kedua mode: tabel kontras di sini (pasangan, rasio mode terang, rasio mode gelap) **atau** tes otomatis yang menghitung rasio dari nilai token;
      - tombol utama dan dropdown di halaman siswa/PJ (ganti password, halaman sementara, jadwal) tingginya minimal 44 px (mis. kelas `min-h-11` di komponen, dicek tes);
      - seluruh tes yang ada tetap hijau, dan teks pesan di aplikasi maupun di tes tidak berubah (hanya tes yang memeriksa kelas CSS yang boleh disesuaikan);
-     - tes manual di HP (mode terang dan gelap lewat pengaturan HP, tombol mudah diketuk, pemilih tanggal/jam terbaca) masuk `docs/tes-manual-tertunda.md`.
+     - tes manual di HP (mode terang dan gelap lewat pengaturan HP, tombol mudah diketuk, pemilih tanggal/jam terbaca) masuk `docs/tes-manual-tertunda.md`;
+     - **syarat sesi terakhir (sesi 3) (v0.17):**
+       - pencarian `data-hanya-terang|modeGelap|mode-gelap` di `resources/` dan `tests/` tidak menemukan apa pun;
+       - setiap halaman memakai `<meta name="color-scheme" content="light dark">`;
+       - tes sementara "halaman yang belum diubah tetap terang" dihapus atau dibalik menjadi pemeriksaan bahwa semua halaman ikut mode gelap.
 9. F3 + F4 Submit dengan batas waktu & keterlambatan (+ `submissions.tugas` diisi server, aturan tanggal libur dan tanggal sebelum `tanggal_mulai_rotasi`).
    Selesai kalau: `submissions.tugas` sesuai rotasi walau form dikirim dengan nilai tugas lain; perilaku di tanggal libur sesuai keputusan F3; submit sebelum `tanggal_mulai_rotasi` ditolak.
    Selesai kalau juga (v0.14): tidak ada lagi `whereDate` di kode, dan tes penuh hijau di SQLite dan MySQL sementara; submit yang ditolak di dalam transaksi tidak meninggalkan file foto di storage; status `terlambat` dan `created_at` memakai waktu awal request, jadi berkas yang sampai sebelum jam tutup tetap tepat waktu walau kompresi foto melewati jam tutup.

@@ -52,3 +52,20 @@ Centang butir yang sudah dites. Kalau hasilnya tidak sesuai, catat di bawah buti
 - Dropdown hari berisi "— Belum terjadwal —" dan Senin sampai Jumat (tanpa Sabtu). Dropdown tugas berisi Menyapu, Merapikan meja & kursi, dan Mengepel. Keduanya mudah diketuk dan teksnya tidak terpotong.
 - Judul kolom menyebut minggunya, mis. "Tugas minggu ini (2–8 Nov)".
 - Setelah simpan, muncul "Jadwal tersimpan.", dan ringkasan di atas (x/9 per hari, x/3 per tugas) ikut berubah.
+
+---
+
+## [ ] Langkah 5c sesi 1: halaman login di HP, mode terang dan gelap
+
+**Apa yang dites:** halaman login (contoh pertama Fondasi desain) terbaca dan mudah dipakai di HP, dan mengikuti mode gelap dari pengaturan HP.
+
+**Langkah:**
+1. Di HP, buka halaman login dengan mode terang (pengaturan tampilan HP: terang).
+2. Ganti pengaturan HP ke mode gelap, lalu buka/muat ulang halaman login.
+3. Di kedua mode: ketik NIS dan password, ketuk tombol mata, centang "Ingat saya", lalu ketuk **Masuk**.
+
+**Hasil yang diharapkan:**
+- Mode halaman ikut pengaturan HP, tanpa tombol mode. Di mode gelap latar gelap dan teks terang; kontrol bawaan browser (kotak centang, isian) ikut bertema gelap.
+- Semua teks terbaca jelas di kedua mode, termasuk teks bantuan dan pesan error (coba password salah).
+- Kolom isian, tombol mata, kotak "Ingat saya", dan tombol **Masuk** mudah diketuk jari. Layar tidak membesar sendiri saat kolom diketuk.
+- Setelah masuk, halaman berikutnya tetap terang (sementara, sampai sesi 5c berikutnya).

@@ -12,7 +12,7 @@
 @php($isian = is_scalar($isian) ? $isian : null)
 
 <div>
-    <label for="{{ $name }}" class="mb-1 block font-medium">{{ $label }}</label>
+    <label for="{{ $name }}" class="mb-1 block font-medium text-teks">{{ $label }}</label>
     <div class="relative">
         <input
             id="{{ $name }}"
@@ -20,7 +20,7 @@
             type="{{ $type }}"
             @unless ($password) value="{{ $isian }}" @endunless
             {{ $attributes->class([
-                'block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30',
+                'block min-h-11 w-full rounded-xl border border-garis-isian bg-permukaan px-4 py-3 text-base text-teks placeholder:text-teks-lembut focus:border-utama',
                 'pr-14' => $password,
             ]) }}
             @error($name) aria-invalid="true" @enderror
@@ -36,7 +36,7 @@
                 data-toggle-password
                 aria-controls="{{ $name }}"
                 aria-label="Tampilkan password"
-                class="absolute top-1/2 right-1 flex size-11 -translate-y-1/2 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                class="absolute top-1/2 right-1 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg text-teks-lembut hover:bg-permukaan-lembut hover:text-teks"
             >
                 {{-- Ikon mata: tampil saat password tersembunyi. --}}
                 <svg data-ikon="tampilkan" class="size-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
@@ -51,9 +51,9 @@
         @endif
     </div>
     @if ($bantuan)
-        <p id="{{ $name }}-bantuan" class="mt-1 text-sm text-gray-600">{{ $bantuan }}</p>
+        <p id="{{ $name }}-bantuan" class="mt-1 text-sm text-teks-lembut">{{ $bantuan }}</p>
     @endif
     @error($name)
-        <p id="{{ $name }}-error" class="mt-1 text-sm text-red-700">{{ $message }}</p>
+        <p id="{{ $name }}-error" class="mt-1 text-sm font-medium text-bahaya">{{ $message }}</p>
     @enderror
 </div>
